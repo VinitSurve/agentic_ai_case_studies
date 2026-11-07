@@ -64,7 +64,9 @@ CS1_ClaimFast/
 │   └── README.md                  # Error taxonomy, case studies, and mitigation guide
 ├── demo/
 │   ├── demo_script.md             # 3-minute executive demo walkthrough & capture checklist
-│   └── run_demo.py                # Interactive CLI demo showcasing key edge cases
+│   ├── run_demo.py                # Interactive CLI demo showcasing key edge cases
+│   └── screenshots/
+│       └── ClaimFast_12_Screenshots/ # 12 verified presentation screenshots
 └── report/
     ├── report_CS1.pdf             # Formatted 5-page publication-quality final report
     ├── generate_pdf_report.py     # Reproducible ReportLab PDF report builder
@@ -83,19 +85,23 @@ The project provides an interactive demonstration script ([`demo/run_demo.py`](d
 2. **Scenario 2: Roadway Feature vs Geographic Location (`TEST011`)**: Demonstrates that few-shot prompts hallucinate `"blind turn"` as the location, while **Structured Reasoning** recognizes it as a roadway feature and outputs `null`.
 3. **Scenario 3: Third-Party Collision & Safety Triage (`TEST001`)**: Demonstrates 100.0% high-urgency triage recall when bodily injury or severe front-end damage occurs.
 
-### Manual Screenshot Capture Checklist
-For final submission evidence, genuine terminal screenshots can be captured directly from your environment using macOS Screenshot (`Cmd + Shift + 4`):
+### Verified Submission Screenshots (`demo/screenshots/ClaimFast_12_Screenshots/`)
+The repository contains 12 verified, genuine application screenshots capturing the end-to-end benchmark pipeline, directory structure, prompt configurations, evaluation logs, error analysis, and executive report:
 
-| Target Screenshot | Terminal Command / Source | Content to Capture |
-|---|---|---|
-| **01 — Input Message** | `head -n 5 data/test.jsonl` | Verbatim text of `TEST005` with vehicle reg, Bandra location, and door scratching. |
-| **02 — Zero-Shot Output** | `python CS1_ClaimFast/demo/run_demo.py` | Strategy A output displaying JSON and `glass_only` misclassification. |
-| **03 — Few-Shot Output** | `python CS1_ClaimFast/demo/run_demo.py` | Strategy B3 output displaying $k=8$ formatting and exemplar grounding. |
-| **04 — Structured Reasoning Output** | `python CS1_ClaimFast/demo/run_demo.py` | Strategy C output displaying correct `own_damage` classification. |
-| **05 — Strategy Comparison** | `python CS1_ClaimFast/demo/run_demo.py` | Comparison matrix showing side-by-side adjudication across all configurations. |
-| **06 — Evaluation Results** | `python CS1_ClaimFast/code/compute_metrics.py` | Terminal output showing 900 jobs, 99.44% valid schema, and Macro-F1. |
-| **07 — Error Analysis** | `head -n 25 error_analysis/error_analysis.csv` | Failure categories, root cause explanations, and proposed fixes. |
-| **08 — Project Reproducibility** | `tree -L 2 CS1_ClaimFast/` | Verified directory tree and reproducible execution scripts. |
+| # | Screenshot Title | File Link | Description & Key Evidence |
+|:---:|---|---|---|
+| **01** | Project Location | [`01_project_location.png`](demo/screenshots/ClaimFast_12_Screenshots/01_project_location.png) | Working directory verification and local repository root. |
+| **02** | Folder Structure | [`02_project_folder_structure.png`](demo/screenshots/ClaimFast_12_Screenshots/02_project_folder_structure.png) | Full project file hierarchy and component organization. |
+| **03** | Dataset Split & Records | [`03_dataset_split_and_sample_records.png`](demo/screenshots/ClaimFast_12_Screenshots/03_dataset_split_and_sample_records.png) | 60 test and 20 dev JSONL record inspection and class distribution. |
+| **04** | Prompt Templates | [`04_prompt_templates.png`](demo/screenshots/ClaimFast_12_Screenshots/04_prompt_templates.png) | Inspection of prompt strategies across zero-shot, few-shot, and structured reasoning. |
+| **05** | Evaluation Run Status | [`05_evaluation_run_status.png`](demo/screenshots/ClaimFast_12_Screenshots/05_evaluation_run_status.png) | Batch evaluation execution showing all 900 jobs completed across 3 runs. |
+| **06** | Detailed Evaluation Output | [`06_detailed_evaluation_output.png`](demo/screenshots/ClaimFast_12_Screenshots/06_detailed_evaluation_output.png) | Raw evaluation runner output logs and JSON generation details. |
+| **07** | Evaluation Analysis Part 1 | [`07_evaluation_analysis_part_1.png`](demo/screenshots/ClaimFast_12_Screenshots/07_evaluation_analysis_part_1.png) | Statistical metric aggregation: Schema validity and field-level accuracy. |
+| **08** | Evaluation Analysis Part 2 | [`08_evaluation_analysis_part_2.png`](demo/screenshots/ClaimFast_12_Screenshots/08_evaluation_analysis_part_2.png) | Classification Macro-F1 breakdown (`claim_type`, `urgency`) and safety triage. |
+| **09** | Evaluation Analysis Part 3 | [`09_evaluation_analysis_part_3.png`](demo/screenshots/ClaimFast_12_Screenshots/09_evaluation_analysis_part_3.png) | Runtime latency (ms) and cost per 1,000 claims comparison across strategies. |
+| **10** | Error Analysis CSV Preview | [`10_error_analysis_csv_preview.png`](demo/screenshots/ClaimFast_12_Screenshots/10_error_analysis_csv_preview.png) | Preview of audited prediction failure modes and root causes in `error_analysis.csv`. |
+| **11** | Report Benchmark Tables | [`11_report_benchmark_and_safety_tables.png`](demo/screenshots/ClaimFast_12_Screenshots/11_report_benchmark_and_safety_tables.png) | Publication-quality ReportLab PDF benchmark tables and safety triage metrics. |
+| **12** | Report Error Analysis | [`12_report_error_analysis_and_consistency.png`](demo/screenshots/ClaimFast_12_Screenshots/12_report_error_analysis_and_consistency.png) | Executive report PDF pages detailing failure analysis and 3-run variance. |
 
 ---
 

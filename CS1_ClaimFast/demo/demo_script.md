@@ -129,3 +129,21 @@ python CS1_ClaimFast/demo/run_demo.py
 #### Capture Point 8: Project Architecture & Reproducibility
 - Command: `tree -L 2 CS1_ClaimFast/`
 - Evidence: Verifiable directory structure, publication PDF report (`report_CS1.pdf`), and flattened dataset (`results.csv`).
+
+---
+
+## 5. Visual Evidence Repository (`screenshots/ClaimFast_12_Screenshots/`)
+
+All 12 genuine presentation screenshots are cataloged and tracked in [`CS1_ClaimFast/demo/screenshots/ClaimFast_12_Screenshots/`](screenshots/ClaimFast_12_Screenshots):
+- [`01_project_location.png`](screenshots/ClaimFast_12_Screenshots/01_project_location.png): Project location and execution root
+- [`02_project_folder_structure.png`](screenshots/ClaimFast_12_Screenshots/02_project_folder_structure.png): File hierarchy and directory tree
+- [`03_dataset_split_and_sample_records.png`](screenshots/ClaimFast_12_Screenshots/03_dataset_split_and_sample_records.png): Dev and test JSONL dataset inspection
+- [`04_prompt_templates.png`](screenshots/ClaimFast_12_Screenshots/04_prompt_templates.png): Prompt configuration templates
+- [`05_evaluation_run_status.png`](screenshots/ClaimFast_12_Screenshots/05_evaluation_run_status.png): Complete 900-job batch evaluation run status
+- [`06_detailed_evaluation_output.png`](screenshots/ClaimFast_12_Screenshots/06_detailed_evaluation_output.png): Raw generation logs and schema validation
+- [`07_evaluation_analysis_part_1.png`](screenshots/ClaimFast_12_Screenshots/07_evaluation_analysis_part_1.png): Benchmark metrics (Schema validity & field accuracy)
+- [`08_evaluation_analysis_part_2.png`](screenshots/ClaimFast_12_Screenshots/08_evaluation_analysis_part_2.png): Classification Macro-F1 and safety triage
+- [`09_evaluation_analysis_part_3.png`](screenshots/ClaimFast_12_Screenshots/09_evaluation_analysis_part_3.png): Strategy latency and cost benchmarking
+- [`10_error_analysis_csv_preview.png`](screenshots/ClaimFast_12_Screenshots/10_error_analysis_csv_preview.png): Tabular error taxonomy preview
+- [`11_report_benchmark_and_safety_tables.png`](screenshots/ClaimFast_12_Screenshots/11_report_benchmark_and_safety_tables.png): ReportLab final executive report benchmark tables
+- [`12_report_error_analysis_and_consistency.png`](screenshots/ClaimFast_12_Screenshots/12_report_error_analysis_and_consistency.png): ReportLab final executive report error analysis and run consistency

@@ -72,7 +72,9 @@ agentic_ai_case_studies/
 │   ├── error_analysis/
 │   ├── demo/
 │   │   ├── demo_script.md
-│   │   └── run_demo.py
+│   │   ├── run_demo.py
+│   │   └── screenshots/
+│   │       └── ClaimFast_12_Screenshots/ # 12 verified presentation screenshots
 │   └── report/
 │       └── report_CS1.pdf         # 5-page publication-quality final report
 └── CS2_PolicyLens/                # Case Study 2: Phases 1 & 2 Complete
