@@ -99,6 +99,7 @@ def index_pdf_document(
     embedding_engine: Any | None = None,
     registry_db_path: str | Path | None = None,
     force_reindex: bool = False,
+    metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Executes the complete end-to-end indexing pipeline for a PDF document.
@@ -177,6 +178,8 @@ def index_pdf_document(
         # 5. Parse PDF using Phase 3.1 PDFParser
         parser = PDFParser()
         parsed_doc = parser.parse_bytes(pdf_bytes, doc_id, filename=path.name)
+        if metadata:
+            parsed_doc.metadata.update(metadata)
 
         # 6. Chunk Document
         chunker = RegulatoryChunker()

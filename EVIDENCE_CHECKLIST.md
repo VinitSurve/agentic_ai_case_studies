@@ -37,17 +37,21 @@ PolicyLens features complete machine-generated text evidence and verified live o
 
 | Evidence Code | Artifact Type | File Location on Disk | Measured Content / Output Verified |
 |:---:|---|---|---|
-| **PL-LOG-01** | First-Run Ingestion Log | [`CS2_PolicyLens/logs/submission_first_run.log`](CS2_PolicyLens/logs/submission_first_run.log) | Real execution of `sebi_currency_deriv_limits_2026.pdf` (3 pages) in **8.76s** (`STATUS: SUCCESS`). |
-| **PL-LOG-02** | Second-Run Idempotency Log | [`CS2_PolicyLens/logs/submission_second_run.log`](CS2_PolicyLens/logs/submission_second_run.log) | Idempotent re-run completed in **0.0021s (2.1 ms)** (`STATUS: SKIPPED`). |
-| **PL-EVAL-01** | 25-Question Benchmark | [`CS2_PolicyLens/eval/questions.csv`](CS2_PolicyLens/eval/questions.csv) | 25 compliance questions (14 text, 6 table-lookup, 5 paraphrased) with verified gold pages. |
-| **PL-EVAL-02** | Retrieval Results Matrix | [`CS2_PolicyLens/eval/retrieval_results.csv`](CS2_PolicyLens/eval/retrieval_results.csv) | Question-by-question comparative ranking across `policylens_structure` and `policylens_fixed`. |
-| **PL-EVAL-03** | Quantitative Metrics | [`CS2_PolicyLens/eval/metrics.json`](CS2_PolicyLens/eval/metrics.json) | Structure-aware (Recall@3: **96.0%**, MRR: **0.9100**) vs Fixed-window (Recall@3: **92.0%**, MRR: **0.8333**). |
+| **PL-LOG-01** | Full-Corpus Ingestion Run 1 | [`CS2_PolicyLens/logs/full_corpus_first_run.log`](CS2_PolicyLens/logs/full_corpus_first_run.log) | Batch ingestion of all 40 PDFs (1,123 pages, 1,604 chunks) in **187.87s** (`STATUS: SUCCESS`). |
+| **PL-LOG-02** | Full-Corpus Ingestion Run 2 | [`CS2_PolicyLens/logs/full_corpus_second_run.log`](CS2_PolicyLens/logs/full_corpus_second_run.log) | Idempotent re-run completed in **0.09s (90 ms)** (**2,087x speedup**, 0 new chunks, 0 duplicates). |
+| **PL-EVAL-01** | Index Audit Evidence | [`CS2_PolicyLens/eval/index_audit.json`](CS2_PolicyLens/eval/index_audit.json) | Full corpus audit record verifying 40/40 active docs, 1,604 chunks, and run timings. |
+| **PL-EVAL-02** | Index Summary Export | [`CS2_PolicyLens/evidence/index_summary.json`](CS2_PolicyLens/evidence/index_summary.json) | Active vector counts and isolation proof across `policylens_v1`, `policylens_structure`, and `policylens_fixed`. |
+| **PL-EVAL-03** | Real ChromaDB Sample Records | [`CS2_PolicyLens/evidence/sample_records.json`](CS2_PolicyLens/evidence/sample_records.json) | 5 representative vector records with real document IDs, titles, issuers, pages, sections, and hashes. |
+| **PL-DEMO-01** | 3-Minute Demonstration Script | [`CS2_PolicyLens/evidence/DEMO_STEPS.md`](CS2_PolicyLens/evidence/DEMO_STEPS.md) | Exact sequence covering structure, batch ingestion, status, RBI search, and idempotency. |
+| **PL-EVAL-04** | 25-Question Benchmark | [`CS2_PolicyLens/eval/questions.csv`](CS2_PolicyLens/eval/questions.csv) | 25 compliance questions (14 text, 6 table-lookup, 5 paraphrased) with verified gold pages. |
+| **PL-EVAL-05** | Retrieval Results Matrix | [`CS2_PolicyLens/eval/retrieval_results.csv`](CS2_PolicyLens/eval/retrieval_results.csv) | Question-by-question comparative ranking across `policylens_structure` and `policylens_fixed`. |
+| **PL-EVAL-06** | Quantitative Metrics | [`CS2_PolicyLens/eval/metrics.json`](CS2_PolicyLens/eval/metrics.json) | Structure-aware (Recall@3: **96.0%**, MRR: **0.9100**) vs Fixed-window (Recall@3: **92.0%**, MRR: **0.8333**). |
 | **PL-AUDIT-01** | Corpus Audit Document | [`CS2_PolicyLens/eval/corpus_audit.md`](CS2_PolicyLens/eval/corpus_audit.md) | Exhaustive structural audit of all 40 PDFs (1,123 pages) across RBI, DFS, SEBI, and IRDAI. |
 | **PL-AUDIT-02** | Parsing & OCR Audit | [`CS2_PolicyLens/eval/parsing_quality.md`](CS2_PolicyLens/eval/parsing_quality.md) | 10-page manual layout audit; Tesseract OCR **95.8% word accuracy** on `dfs_sidbi_dmd_2026`. |
-| **PL-AUDIT-03** | Efficiency & Latency Audit | [`CS2_PolicyLens/eval/benchmark_results.md`](CS2_PolicyLens/eval/benchmark_results.md) | Query latency distribution (mean **10.3 ms**), zero API costs, storage footprints. |
+| **PL-AUDIT-03** | Efficiency & Latency Audit | [`CS2_PolicyLens/eval/benchmark_results.md`](CS2_PolicyLens/eval/benchmark_results.md) | Query latency distribution (mean **11.61 ms**), zero API costs, 28.25 MB ChromaDB storage. |
 | **PL-REP-01** | Publication PDF Report | [`CS2_PolicyLens/report/report_CS2.pdf`](CS2_PolicyLens/report/report_CS2.pdf) | Authoritative 5-page publication-quality ReportLab PDF report with tables and analysis. |
-| **PL-CLI-01** | Assignment Ingestion CLI | [`CS2_PolicyLens/ingest.py`](CS2_PolicyLens/ingest.py) | Thin wrapper supporting `--pdf <path>` and `--status`. |
-| **PL-CLI-02** | Assignment Search CLI | [`CS2_PolicyLens/search.py`](CS2_PolicyLens/search.py) | Thin wrapper supporting `--query <q>`, `--ask <q>`, and `--filter issuer=RBI`. |
+| **PL-CLI-01** | Assignment Ingestion CLI | [`CS2_PolicyLens/ingest.py`](CS2_PolicyLens/ingest.py) | Full batch & single PDF ingestion CLI supporting `--input`, `--manifest`, and `--status`. |
+| **PL-CLI-02** | Assignment Search CLI | [`CS2_PolicyLens/search.py`](CS2_PolicyLens/search.py) | Full search & QA CLI supporting positional query, `--top_k`, and `--filter issuer=RBI`. |
 
 ---
 

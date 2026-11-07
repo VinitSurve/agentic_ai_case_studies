@@ -115,6 +115,11 @@ class RegulatoryChunker:
                 "block_count": len(current_block_ids),
                 "strategy": "structure_aware",
             }
+            if parsed_doc.metadata:
+                if "title" in parsed_doc.metadata and parsed_doc.metadata["title"]:
+                    meta["title"] = str(parsed_doc.metadata["title"])
+                if "issuer" in parsed_doc.metadata and parsed_doc.metadata["issuer"]:
+                    meta["issuer"] = str(parsed_doc.metadata["issuer"])
 
             chunks.append(
                 DocumentChunk(
@@ -264,6 +269,11 @@ class RegulatoryChunker:
                 "page_number": min(pages) if pages else 1,
                 "strategy": "fixed_sliding_window",
             }
+            if parsed_doc.metadata:
+                if "title" in parsed_doc.metadata and parsed_doc.metadata["title"]:
+                    meta["title"] = str(parsed_doc.metadata["title"])
+                if "issuer" in parsed_doc.metadata and parsed_doc.metadata["issuer"]:
+                    meta["issuer"] = str(parsed_doc.metadata["issuer"])
 
             chunks.append(
                 DocumentChunk(

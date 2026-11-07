@@ -1,0 +1,37 @@
+{
+  "collection_name": "policylens_v1",
+  "audit_timestamp": "2026-11-07T20:58:14Z",
+  "manifest_document_count": 40,
+  "successfully_indexed_count": 40,
+  "first_run": {
+    "duration_seconds": 187.87,
+    "pages_processed": 1123,
+    "chunks_created": 1604,
+    "skipped_count": 0,
+    "failed_count": 0,
+    "log_file": "logs/full_corpus_first_run.log"
+  },
+  "second_run": {
+    "duration_seconds": 0.09,
+    "pages_processed": 1123,
+    "new_chunks_added": 0,
+    "skipped_count": 40,
+    "failed_count": 0,
+    "duplicate_vectors_detected": 0,
+    "idempotency_speedup_factor": 2087.44,
+    "log_file": "logs/full_corpus_second_run.log"
+  },
+  "corpus_totals": {
+    "active_documents": 40,
+    "total_pages": 1123,
+    "total_active_chunks": 1604,
+    "mean_chunks_per_document": 40.1,
+    "issuers": {
+      "Reserve Bank of India (RBI)": 22,
+      "Department of Financial Services (DFS)": 9,
+      "Securities and Exchange Board of India (SEBI)": 8,
+      "Insurance Regulatory and Development Authority of India (IRDAI)": 1
+    }
+  },
+  "verification_status": "SUCCESS - 100% Corpus Indexed with Absolute Ingestion Idempotency"
+}

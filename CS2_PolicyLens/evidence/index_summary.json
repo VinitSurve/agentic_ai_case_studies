@@ -1,0 +1,29 @@
+{
+  "audit_timestamp": "2026-11-07T20:58:30Z",
+  "total_collections": 3,
+  "collections": {
+    "policylens_v1": {
+      "active_documents": 40,
+      "active_chunks_sqlite": 1604,
+      "chroma_vector_count": 1604
+    },
+    "policylens_fixed": {
+      "active_documents": 4,
+      "active_chunks_sqlite": 45,
+      "chroma_vector_count": 45
+    },
+    "policylens_structure": {
+      "active_documents": 6,
+      "active_chunks_sqlite": 114,
+      "chroma_vector_count": 114
+    }
+  },
+  "active_isolation_guarantee": {
+    "status": "VERIFIED",
+    "mechanism": "SQLite version_lifecycle CAS Promotion & Strict Inner Join on active_fingerprint",
+    "retrieval_query_filter": "WHERE c.index_fingerprint IN (SELECT active_fingerprint FROM document_registry WHERE collection_name = ?)",
+    "purged_versions_retrievable": false,
+    "failed_versions_retrievable": false,
+    "staging_versions_retrievable": false
+  }
+}

@@ -162,15 +162,15 @@ We conducted a controlled evaluation comparing **Structure-Aware Chunking** agai
 
 | Metric | Measured Value | Operational Significance |
 |---|:---:|---|
-| **First-Run Ingestion Latency** | **8.76 s** | Full parse, layout analysis, embedding, guarded write, and CAS promotion (`sebi_currency_limits_2026`, 3 pages) |
-| **Unchanged Second-Run Latency** | **0.0021 s (2.1 ms)** | Instantaneous idempotency detection via SHA-256 fingerprint snapshot matching |
-| **Idempotency Speedup** | **4,171x** | Bypasses redundant parsing and vector computation completely |
-| **Mean Vector Query Latency** | **10.3 ms** | Sub-15ms vector retrieval over 10 repeated queries |
-| **Min Query Latency** | **8.9 ms** | Cache-warm active snapshot vector scan |
-| **P95 Query Latency** | **13.1 ms** | High-percentile retrieval latency |
+| **Full-Corpus Ingestion (Run 1)** | **187.87 s (~3.13 min)** | End-to-end parse, OCR, embedding, guarded write, and CAS promotion across all 40 PDFs / 1,123 pages (16.73 s / 100 pages, 5.98 pgs/sec) |
+| **Idempotent Re-Run (Run 2)** | **0.09 s (90 ms)** | Instantaneous idempotency detection via SHA-256 fingerprint matching across all 40 documents (**2,087x speedup**, 0 new chunks, 0 duplicates) |
+| **Total Active Chunks** | **1,604 Chunks** | In collection `policylens_v1` (1,763 chunks total across all collections) |
+| **Warm Vector Query Latency** | **11.61 ms** | Sub-15ms vector retrieval over 20 repeated queries against active ChromaDB HNSW index (min: 10.53 ms, p95: 14.58 ms) |
+| **Cold CLI Query Latency** | **3.28 s** | Includes Python runtime startup and SentenceTransformers weight initialization |
 | **Local Embedding Compute Cost** | **$0.00 (Zero API Cost)** | SentenceTransformers CPU execution; requires ~2.5 seconds CPU time per 1,000 chunks |
-| **SQLite Registry Footprint** | **28.0 KB** | Ultra-compact transactional database |
-| **ChromaDB Storage Footprint** | **3.71 MB** | Persistent vector storage across both structure and fixed collections |
+| **SQLite Registry Footprint** | **112.0 KB** | Fully indexed metadata and lifecycle audit log across 40 documents |
+| **ChromaDB Storage Footprint** | **28.25 MB** | Complete local persistent HNSW vector storage covering all 40 regulatory circulars |
+| **Automated Test Suite** | **38 / 38 Passing** | Full test suite executes in 1.1s with zero external network dependencies |
 
 ---
 

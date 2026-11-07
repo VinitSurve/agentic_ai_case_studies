@@ -168,54 +168,85 @@ GROQ_API_KEY_1=gsk_your_groq_api_key_here
 
 ## 8. How to Execute the Project
 
-PolicyLens provides a single unified CLI entry point via [`index.py`](file:///Users/vinit/Vinit/ITM/Agent%20AI%20Foundations/LLM_Case_Studies/CS2_PolicyLens/index.py):
+PolicyLens provides flexible CLI entry points via [`ingest.py`](file:///Users/vinit/Vinit/ITM/Agent%20AI%20Foundations/LLM_Case_Studies/CS2_PolicyLens/ingest.py) and [`search.py`](file:///Users/vinit/Vinit/ITM/Agent%20AI%20Foundations/LLM_Case_Studies/CS2_PolicyLens/search.py) (as well as unified entry point [`index.py`](file:///Users/vinit/Vinit/ITM/Agent%20AI%20Foundations/LLM_Case_Studies/CS2_PolicyLens/index.py)):
 
-### 8.1 Index a Regulatory PDF
+### 8.1 Batch Ingest Full Corpus (Assignment Command)
 ```bash
-python CS2_PolicyLens/index.py --index \
-    --pdf CS2_PolicyLens/data/pdfs/rbi_disbursement_pension_2026.pdf \
-    --doc-id rbi_pension_2026 \
-    --collection policylens_structure
+python CS2_PolicyLens/ingest.py \
+    --input CS2_PolicyLens/data/pdfs \
+    --manifest CS2_PolicyLens/data/manifest.csv \
+    --collection policylens_v1
 ```
 
 **Output:**
 ```text
-[*] Indexing PDF: CS2_PolicyLens/data/pdfs/rbi_disbursement_pension_2026.pdf
-[+] Status: SUCCESS
-    Document ID: rbi_pension_2026
-    Version ID:  rbi_pension_2026_20261107121318_556144
-    Fingerprint: 15a331d00e60e3c4c32a48e9bc268dd512f2fa8dcc14948530d6686998a571dc
-    Chunks:      19
-    Message:     Document successfully parsed, embedded, indexed, and promoted.
+[*] Starting Batch Ingestion: 40 documents -> Collection 'policylens_v1'
+  [01/40] [+] INDEXED: rbi_internal_ombudsman_comm_2026 (16 pages, 17 chunks)
+  ...
+  [40/40] [+] INDEXED: sebi_net_settlement_mf_2026 (5 pages, 11 chunks)
+
+=================================================================
+INGESTION BATCH SUMMARY
+=================================================================
+Collection Name:             policylens_v1
+Manifest Document Count:     40
+Successfully Indexed:        40
+Skipped (Unchanged/Cached):  0
+Failed Count:                0
+Total Pages Processed:       1123
+Total Chunks Active:         1604
+New Chunks Added:            1604
+Active Document Count:       40
+Execution Duration:          187.87 seconds
+=================================================================
 ```
 
-### 8.2 Check Active Registry Status
+### 8.2 Filtered Search with Document Title, Page & Section (Assignment Command)
 ```bash
-python CS2_PolicyLens/index.py --status
+python CS2_PolicyLens/search.py "cash disbursement limit for secured loans" --top_k 5 --filter issuer=RBI
 ```
 
 **Output:**
 ```text
-[+] Active Document Registry (1 documents indexed):
-  • rbi_pension_2026 [policylens_structure] -> Version: rbi_pension_2026_20261107121318_556144 | Chunks: 19 | Promoted: 2026-11-07T12:13:28+00:00
+[*] Applied metadata filter 'issuer=RBI' (22 matching documents).
+[*] Searching collection 'policylens_v1': "cash disbursement limit for secured loans"
+[+] Found 5 matching chunks (Active Versions Only):
+
+--- Result 1 | Reserve Bank of India (Commercial Banks - Asset Classification, Provisioning and Income Recognition) Directions, 2026 (Reserve Bank of India (RBI)) ---
+    Document ID: rbi_asset_class_irac_2026 | Page: 37 | Section: (xii) Project Finance Exposures (other than Real Estate) | Cosine Score: 0.4807
+    Text Preview:
+    Note 1: For CRE (ADC) & CRE-RH (ADC) accounts which have availed DCCO deferment as per extant norms, a bank shall maintain account wise additional specific provisions of 0.5625%, for each quarter of deferment, over and above the applicable Stage 1 provision...
 ```
 
-### 8.3 Query Active Corpus Vectors
+### 8.3 Check Active Registry Status
 ```bash
-python CS2_PolicyLens/index.py \
-    --query "rules for recovery of excess pension payments" \
-    --top-k 3
+python CS2_PolicyLens/ingest.py --status
+```
+
+### 8.4 Idempotent Re-Ingestion (Zero Duplicate Verification)
+```bash
+python CS2_PolicyLens/ingest.py \
+    --input CS2_PolicyLens/data/pdfs \
+    --manifest CS2_PolicyLens/data/manifest.csv \
+    --collection policylens_v1
 ```
 
 **Output:**
 ```text
-[*] Querying collection 'policylens_structure': "rules for recovery of excess pension payments"
-[+] Found 3 matching chunks:
-
---- Result 1 | rbi_pension_2026 (Page 6) (score: 0.6948) ---
-[rbi_pension_2026 > 9. Whenever such excess/wrongful pension payment is made due to Government]
-The banks may ensure that no recovery of excess amount from the pension of a Government employee
-shall be effected without the pensioner’s knowledge and consent, or without the issuance of a prior notice...
+=================================================================
+INGESTION BATCH SUMMARY
+=================================================================
+Collection Name:             policylens_v1
+Manifest Document Count:     40
+Successfully Indexed:        0
+Skipped (Unchanged/Cached):  40
+Failed Count:                0
+Total Pages Processed:       1123
+Total Chunks Active:         1604
+New Chunks Added:            0
+Active Document Count:       40
+Execution Duration:          0.09 seconds (2,087x speedup)
+=================================================================
 ```
 
 ### 8.4 Ask a Grounded Regulatory Question (`--ask`)

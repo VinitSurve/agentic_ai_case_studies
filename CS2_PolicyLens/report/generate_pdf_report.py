@@ -405,11 +405,12 @@ def build_pdf_report() -> None:
 
     bench_data = [
         [Paragraph("Performance Dimension", tbl_header), Paragraph("Measured Result", tbl_header), Paragraph("Benchmark Significance & Hardware Context", tbl_header)],
-        [Paragraph("<b>First-Run Ingestion Latency</b>", tbl_cell), Paragraph("<b>8.76 s</b>", tbl_cell), Paragraph("Full end-to-end parse, embedding, guarded write, and CAS promotion (sebi_currency_limits_2026, 3 pages).", tbl_cell)],
-        [Paragraph("<b>Unchanged Second-Run Latency</b>", tbl_cell), Paragraph("<b>0.0021 s (2.1 ms)</b>", tbl_cell), Paragraph("<b>4,171x speedup</b> via instantaneous SHA-256 fingerprint matching in SQLite.", tbl_cell)],
-        [Paragraph("<b>Mean Vector Retrieval Latency</b>", tbl_cell), Paragraph("<b>10.3 ms</b>", tbl_cell), Paragraph("Sub-15ms vector query latency over 10 repeated queries against active ChromaDB HNSW index.", tbl_cell)],
-        [Paragraph("<b>Embedding Cost / 1k Chunks</b>", tbl_cell), Paragraph("<b>$0.00 (Zero API Cost)</b>", tbl_cell), Paragraph("Local SentenceTransformers CPU execution. Requires ~2.5 seconds total CPU time per 1k chunks.", tbl_cell)],
-        [Paragraph("<b>ChromaDB Storage Footprint</b>", tbl_cell), Paragraph("<b>3.71 MB</b>", tbl_cell), Paragraph("Highly compressed local HNSW vector index covering all indexed regulatory circulars.", tbl_cell)],
+        [Paragraph("<b>Full-Corpus Ingestion (Run 1)</b>", tbl_cell), Paragraph("<b>187.87 s (~3.1 min)</b>", tbl_cell), Paragraph("End-to-end parse, OCR, embedding, and CAS promotion across all 40 PDFs / 1,123 pages (16.73 s / 100 pages).", tbl_cell)],
+        [Paragraph("<b>Idempotent Re-Run (Run 2)</b>", tbl_cell), Paragraph("<b>0.09 s (90 ms)</b>", tbl_cell), Paragraph("<b>2,087x speedup</b> across all 40 documents; exactly 0 new chunks added; zero duplicate vectors created.", tbl_cell)],
+        [Paragraph("<b>Total Active Vectors</b>", tbl_cell), Paragraph("<b>1,604 Chunks</b>", tbl_cell), Paragraph("1,604 chunks in policylens_v1 (1,763 chunks total across all collections) with active isolation.", tbl_cell)],
+        [Paragraph("<b>Warm Retrieval Latency</b>", tbl_cell), Paragraph("<b>11.61 ms (Mean)</b>", tbl_cell), Paragraph("Sub-15ms vector query response (min: 10.53 ms, p95: 14.58 ms) over 20 repeated runs on CPU.", tbl_cell)],
+        [Paragraph("<b>ChromaDB Storage Footprint</b>", tbl_cell), Paragraph("<b>28.25 MB</b>", tbl_cell), Paragraph("Complete local persistent HNSW vector index covering all 40 regulatory circulars.", tbl_cell)],
+        [Paragraph("<b>Local Embedding Cost</b>", tbl_cell), Paragraph("<b>$0.00 (Zero API Cost)</b>", tbl_cell), Paragraph("Local SentenceTransformers CPU execution. Requires ~2.5 seconds total CPU time per 1k chunks.", tbl_cell)],
         [Paragraph("<b>Automated Test Suite</b>", tbl_cell), Paragraph("<b>38 / 38 Passing</b>", tbl_cell), Paragraph("Executes complete test suite (parsing, lifecycle, CAS races, metadata, QA) in <b>1.12 seconds</b>.", tbl_cell)],
     ]
     bench_table = Table(bench_data, colWidths=[1.8 * inch, 1.4 * inch, 3.8 * inch])
