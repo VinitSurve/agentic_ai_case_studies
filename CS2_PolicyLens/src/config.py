@@ -22,6 +22,7 @@ class PolicyLensConfig:
     MANIFEST_FILE: Path = DATA_DIR / "manifest.csv"
     CHECKPOINT_FILE: Path = DATA_DIR / ".ingestion_checkpoint.json"
     CHROMA_DIR: Path = DATA_DIR / "chroma_db"
+    REGISTRY_DB_PATH: Path = DATA_DIR / "policylens_registry.db"
 
     EVAL_DIR: Path = BASE_DIR / "eval"
     QUESTIONS_FILE: Path = EVAL_DIR / "questions.csv"

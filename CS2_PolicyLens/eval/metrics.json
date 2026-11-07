@@ -1,0 +1,51 @@
+{
+  "total_questions": 25,
+  "structure_aware": {
+    "recall_at_3": 0.96,
+    "recall_at_5": 1.0,
+    "recall_at_10": 1.0,
+    "mrr": 0.91,
+    "raw_hits": {
+      "top3": 24,
+      "top5": 25,
+      "top10": 25
+    }
+  },
+  "fixed_window": {
+    "recall_at_3": 0.92,
+    "recall_at_5": 1.0,
+    "recall_at_10": 1.0,
+    "mrr": 0.8333,
+    "raw_hits": {
+      "top3": 23,
+      "top5": 25,
+      "top10": 25
+    }
+  },
+  "disagreements": [
+    {
+      "question_id": "Q06",
+      "question": "What is the circular reference number of the repealed instruction dated 14.10.2009 for pension withdrawal facilities through public sector banks?",
+      "question_type": "table_lookup",
+      "struct_rank": 1,
+      "fixed_rank": 4,
+      "advantage": "structure_aware"
+    },
+    {
+      "question_id": "Q10",
+      "question": "What is the minimum threshold of banking outlets for a commercial bank to fall under the mandatory Internal Ombudsman framework?",
+      "question_type": "text_standard",
+      "struct_rank": 1,
+      "fixed_rank": 4,
+      "advantage": "structure_aware"
+    },
+    {
+      "question_id": "Q23",
+      "question": "In Annex 1 of the agency bank directions, which agency bank is listed under serial number 2?",
+      "question_type": "table_lookup",
+      "struct_rank": 4,
+      "fixed_rank": 2,
+      "advantage": "fixed_window"
+    }
+  ]
+}

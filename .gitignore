@@ -24,15 +24,23 @@ venv/
 
 # Logs
 *.log
+logs/
+CS2_PolicyLens/logs/
 
-# Vector databases
+# Databases & Vector databases
+*.db
+*.sqlite
+*.sqlite3
+CS2_PolicyLens/data/*.db
 chroma_db/
 vector_store/
+CS2_PolicyLens/data/chroma_db/
 
 # Large binary files & corpus downloads
 CS2_PolicyLens/data/pdfs/
 *.pdf
 !CS1_ClaimFast/report/report_CS1.pdf
+!CS2_PolicyLens/report/report_CS2.pdf
 
 # Local-only demo screenshot generator (retained locally only)
 CS1_ClaimFast/code/generate_demo_screenshots.py
