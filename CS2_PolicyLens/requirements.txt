@@ -1,0 +1,21 @@
+# PolicyLens (Case Study 2) – Pinned Working Dependencies
+# Verified on macOS Darwin (Python 3.11.7)
+
+# PDF Parsing & OCR
+pymupdf==1.28.2
+pdfplumber==0.11.10
+pytesseract==0.3.13
+pillow==13.0.0
+
+# Local Embeddings & Model Runtime
+torch==2.2.2
+transformers>=4.35.0
+sentence-transformers==6.2.0
+
+# Local Vector Database
+chromadb==1.5.9
+
+# Evaluation & Tabular Data
+pandas==3.1.1
+numpy>=1.24.0
+tabulate==0.10.0

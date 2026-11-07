@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*client_secret*.json
+
+# macOS
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+*.log
+
+# Vector databases
+chroma_db/
+vector_store/
+
+# Large binary files & corpus downloads
+CS2_PolicyLens/data/pdfs/
+*.pdf
+!CS1_ClaimFast/report/report_CS1.pdf
