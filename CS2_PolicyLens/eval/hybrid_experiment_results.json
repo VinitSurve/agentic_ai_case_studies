@@ -1,0 +1,718 @@
+{
+  "benchmark_summary": {
+    "candidate_recalls": {
+      "R@20": 1.0,
+      "R@50": 1.0,
+      "R@100": 1.0
+    },
+    "configurations": {
+      "1. Dense Baseline": {
+        "recall_at_3": 0.96,
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.91,
+        "avg_latency_ms": 212.23,
+        "q23_rank": 4,
+        "avg_raw_pool": 20.0,
+        "avg_dedup_pool": 20.0
+      },
+      "2. Dense + Config 4": {
+        "recall_at_3": 0.96,
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.93,
+        "avg_latency_ms": 215.39,
+        "q23_rank": 4,
+        "avg_raw_pool": 20.0,
+        "avg_dedup_pool": 20.0
+      },
+      "3. Dense + Query Expansion + Config 4": {
+        "recall_at_3": 0.96,
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.93,
+        "avg_latency_ms": 14.41,
+        "q23_rank": 4,
+        "avg_raw_pool": 20.0,
+        "avg_dedup_pool": 20.0
+      },
+      "4. Hybrid (Dense + Lexical) + Config 4": {
+        "recall_at_3": 0.96,
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.93,
+        "avg_latency_ms": 73.46,
+        "q23_rank": 4,
+        "avg_raw_pool": 25.2,
+        "avg_dedup_pool": 22.1
+      },
+      "5. Hybrid + Query Expansion + Config 4": {
+        "recall_at_3": 0.96,
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.93,
+        "avg_latency_ms": 73.21,
+        "q23_rank": 4,
+        "avg_raw_pool": 25.2,
+        "avg_dedup_pool": 22.1
+      }
+    },
+    "regressions": {
+      "1. Dense Baseline": [],
+      "2. Dense + Config 4": [],
+      "3. Dense + Query Expansion + Config 4": [],
+      "4. Hybrid (Dense + Lexical) + Config 4": [],
+      "5. Hybrid + Query Expansion + Config 4": []
+    }
+  },
+  "npa_results": [
+    {
+      "label": "NPA Query 1",
+      "query": "What are substandard, doubtful, and loss assets in asset classification?",
+      "configs": {
+        "1. Dense Baseline": {
+          "latency_ms": 69.33,
+          "raw_pool_size": 25,
+          "dedup_pool_size": 25,
+          "clause8_struct_0008_rank": null,
+          "clause8_struct_0009_rank": null,
+          "top3": [
+            {
+              "rank": 1,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0017",
+              "page": 16,
+              "score": 0.6268,
+              "base_score": 0.6268,
+              "boost": 0.0,
+              "source": "dense",
+              "preview": "category for a period of twelve months. A doubtful asset has all the weaknesses inherent in assets that were classifi..."
+            },
+            {
+              "rank": 2,
+              "doc_id": "dfs_nabfid_rules_2022",
+              "chunk_id": "dfs_nabfid_rules_2022_struct_0055",
+              "page": 57,
+              "score": 0.4864,
+              "base_score": 0.4864,
+              "boost": 0.0,
+              "source": "dense",
+              "preview": "(F) Property, Plant and Equipment (i) Classification shall be given as:"
+            },
+            {
+              "rank": 3,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0047",
+              "page": 36,
+              "score": 0.4651,
+              "base_score": 0.4651,
+              "boost": 0.0,
+              "source": "dense",
+              "preview": "(4) The product-wise and stage-wise prudential floors for below \u201cloan product categories\u201d are as below:"
+            }
+          ]
+        },
+        "2. Dense + Config 4": {
+          "latency_ms": 17.51,
+          "raw_pool_size": 25,
+          "dedup_pool_size": 25,
+          "clause8_struct_0008_rank": null,
+          "clause8_struct_0009_rank": null,
+          "top3": [
+            {
+              "rank": 1,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0017",
+              "page": 16,
+              "score": 0.6895,
+              "base_score": 0.6268,
+              "boost": 0.0627,
+              "source": "dense",
+              "preview": "category for a period of twelve months. A doubtful asset has all the weaknesses inherent in assets that were classifi..."
+            },
+            {
+              "rank": 2,
+              "doc_id": "dfs_nabfid_rules_2022",
+              "chunk_id": "dfs_nabfid_rules_2022_struct_0055",
+              "page": 57,
+              "score": 0.5264,
+              "base_score": 0.4864,
+              "boost": 0.04,
+              "source": "dense",
+              "preview": "(F) Property, Plant and Equipment (i) Classification shall be given as:"
+            },
+            {
+              "rank": 3,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0010",
+              "page": 10,
+              "score": 0.4752,
+              "base_score": 0.432,
+              "boost": 0.0432,
+              "source": "dense",
+              "preview": "1 A bank shall report a credit card account as \u2018past due\u2019 to credit information companies (CICs) or levy penal charge..."
+            }
+          ]
+        },
+        "3. Dense + Query Expansion + Config 4": {
+          "latency_ms": 19.68,
+          "raw_pool_size": 25,
+          "dedup_pool_size": 25,
+          "clause8_struct_0008_rank": null,
+          "clause8_struct_0009_rank": null,
+          "top3": [
+            {
+              "rank": 1,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0017",
+              "page": 16,
+              "score": 0.6895,
+              "base_score": 0.6268,
+              "boost": 0.0627,
+              "source": "dense",
+              "preview": "category for a period of twelve months. A doubtful asset has all the weaknesses inherent in assets that were classifi..."
+            },
+            {
+              "rank": 2,
+              "doc_id": "dfs_nabfid_rules_2022",
+              "chunk_id": "dfs_nabfid_rules_2022_struct_0055",
+              "page": 57,
+              "score": 0.5264,
+              "base_score": 0.4864,
+              "boost": 0.04,
+              "source": "dense",
+              "preview": "(F) Property, Plant and Equipment (i) Classification shall be given as:"
+            },
+            {
+              "rank": 3,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0010",
+              "page": 10,
+              "score": 0.4752,
+              "base_score": 0.432,
+              "boost": 0.0432,
+              "source": "dense",
+              "preview": "1 A bank shall report a credit card account as \u2018past due\u2019 to credit information companies (CICs) or levy penal charge..."
+            }
+          ]
+        },
+        "4. Hybrid (Dense + Lexical) + Config 4": {
+          "latency_ms": 91.54,
+          "raw_pool_size": 50,
+          "dedup_pool_size": 44,
+          "clause8_struct_0008_rank": 26,
+          "clause8_struct_0009_rank": null,
+          "top3": [
+            {
+              "rank": 1,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0017",
+              "page": 16,
+              "score": 0.6895,
+              "base_score": 0.6268,
+              "boost": 0.0627,
+              "source": "both",
+              "preview": "category for a period of twelve months. A doubtful asset has all the weaknesses inherent in assets that were classifi..."
+            },
+            {
+              "rank": 2,
+              "doc_id": "dfs_nabfid_rules_2022",
+              "chunk_id": "dfs_nabfid_rules_2022_struct_0055",
+              "page": 57,
+              "score": 0.5264,
+              "base_score": 0.4864,
+              "boost": 0.04,
+              "source": "dense",
+              "preview": "(F) Property, Plant and Equipment (i) Classification shall be given as:"
+            },
+            {
+              "rank": 3,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0010",
+              "page": 10,
+              "score": 0.4752,
+              "base_score": 0.432,
+              "boost": 0.0432,
+              "source": "both",
+              "preview": "1 A bank shall report a credit card account as \u2018past due\u2019 to credit information companies (CICs) or levy penal charge..."
+            }
+          ]
+        },
+        "5. Hybrid + Query Expansion + Config 4": {
+          "latency_ms": 90.54,
+          "raw_pool_size": 50,
+          "dedup_pool_size": 44,
+          "clause8_struct_0008_rank": 26,
+          "clause8_struct_0009_rank": null,
+          "top3": [
+            {
+              "rank": 1,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0017",
+              "page": 16,
+              "score": 0.6895,
+              "base_score": 0.6268,
+              "boost": 0.0627,
+              "source": "both",
+              "preview": "category for a period of twelve months. A doubtful asset has all the weaknesses inherent in assets that were classifi..."
+            },
+            {
+              "rank": 2,
+              "doc_id": "dfs_nabfid_rules_2022",
+              "chunk_id": "dfs_nabfid_rules_2022_struct_0055",
+              "page": 57,
+              "score": 0.5264,
+              "base_score": 0.4864,
+              "boost": 0.04,
+              "source": "dense",
+              "preview": "(F) Property, Plant and Equipment (i) Classification shall be given as:"
+            },
+            {
+              "rank": 3,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0010",
+              "page": 10,
+              "score": 0.4752,
+              "base_score": 0.432,
+              "boost": 0.0432,
+              "source": "both",
+              "preview": "1 A bank shall report a credit card account as \u2018past due\u2019 to credit information companies (CICs) or levy penal charge..."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "label": "NPA Query 2",
+      "query": "When does a credit facility get classified as a non-performing asset or out of order?",
+      "configs": {
+        "1. Dense Baseline": {
+          "latency_ms": 17.38,
+          "raw_pool_size": 25,
+          "dedup_pool_size": 25,
+          "clause8_struct_0008_rank": null,
+          "clause8_struct_0009_rank": 5,
+          "top3": [
+            {
+              "rank": 1,
+              "doc_id": "rbi_credit_risk_std_2026",
+              "chunk_id": "rbi_credit_risk_std_2026_struct_0078",
+              "page": 43,
+              "score": 0.5011,
+              "base_score": 0.5011,
+              "boost": 0.0,
+              "source": "dense",
+              "preview": "| Sr. No. | Instruments | Credit Conversion Factor (%) | | --- | --- | --- | | 3. | Forward asset purchases, forward ..."
+            },
+            {
+              "rank": 2,
+              "doc_id": "rbi_mpr_oct_2026",
+              "chunk_id": "rbi_mpr_oct_2026_struct_0060",
+              "page": 35,
+              "score": 0.4968,
+              "base_score": 0.4968,
+              "boost": 0.0,
+              "source": "dense",
+              "preview": "Within services sector, 'non-banking financial companies' (NBFCs) remained the largest recipient OCTOBER 2026 Chart I..."
+            },
+            {
+              "rank": 3,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0010",
+              "page": 10,
+              "score": 0.4932,
+              "base_score": 0.4932,
+              "boost": 0.0,
+              "source": "dense",
+              "preview": "1 A bank shall report a credit card account as \u2018past due\u2019 to credit information companies (CICs) or levy penal charge..."
+            }
+          ]
+        },
+        "2. Dense + Config 4": {
+          "latency_ms": 19.94,
+          "raw_pool_size": 25,
+          "dedup_pool_size": 25,
+          "clause8_struct_0008_rank": null,
+          "clause8_struct_0009_rank": 3,
+          "top3": [
+            {
+              "rank": 1,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0010",
+              "page": 10,
+              "score": 0.5425,
+              "base_score": 0.4932,
+              "boost": 0.0493,
+              "source": "dense",
+              "preview": "1 A bank shall report a credit card account as \u2018past due\u2019 to credit information companies (CICs) or levy penal charge..."
+            },
+            {
+              "rank": 2,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0011",
+              "page": 11,
+              "score": 0.5367,
+              "base_score": 0.4879,
+              "boost": 0.0488,
+              "source": "dense",
+              "preview": "(1) The bills discounted under Letter of Credit (LC) favouring a borrower may not be classified as NPA, when any othe..."
+            },
+            {
+              "rank": 3,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0009",
+              "page": 10,
+              "score": 0.5345,
+              "base_score": 0.4859,
+              "boost": 0.0486,
+              "source": "dense",
+              "preview": "(2) If it is classified as \u2018out of order\u2019 in respect of an Overdraft/ Cash Credit (OD/ CC); (3) If drawings are permi..."
+            }
+          ]
+        },
+        "3. Dense + Query Expansion + Config 4": {
+          "latency_ms": 24.03,
+          "raw_pool_size": 25,
+          "dedup_pool_size": 25,
+          "clause8_struct_0008_rank": null,
+          "clause8_struct_0009_rank": 6,
+          "top3": [
+            {
+              "rank": 1,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0018",
+              "page": 17,
+              "score": 0.6662,
+              "base_score": 0.6056,
+              "boost": 0.0606,
+              "source": "dense",
+              "preview": "appropriation of repayments2 etc. The borrower shall be apprised of the same at the time of loan sanction and also at..."
+            },
+            {
+              "rank": 2,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0010",
+              "page": 10,
+              "score": 0.6389,
+              "base_score": 0.5808,
+              "boost": 0.0581,
+              "source": "dense",
+              "preview": "1 A bank shall report a credit card account as \u2018past due\u2019 to credit information companies (CICs) or levy penal charge..."
+            },
+            {
+              "rank": 3,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0013",
+              "page": 12,
+              "score": 0.6303,
+              "base_score": 0.573,
+              "boost": 0.0573,
+              "source": "dense",
+              "preview": "payment of interest, payment of interest becomes \u2018due\u2019 only after the moratorium or gestation period is over. Such am..."
+            }
+          ]
+        },
+        "4. Hybrid (Dense + Lexical) + Config 4": {
+          "latency_ms": 80.39,
+          "raw_pool_size": 44,
+          "dedup_pool_size": 38,
+          "clause8_struct_0008_rank": 20,
+          "clause8_struct_0009_rank": 3,
+          "top3": [
+            {
+              "rank": 1,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0010",
+              "page": 10,
+              "score": 0.5425,
+              "base_score": 0.4932,
+              "boost": 0.0493,
+              "source": "both",
+              "preview": "1 A bank shall report a credit card account as \u2018past due\u2019 to credit information companies (CICs) or levy penal charge..."
+            },
+            {
+              "rank": 2,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0011",
+              "page": 11,
+              "score": 0.5367,
+              "base_score": 0.4879,
+              "boost": 0.0488,
+              "source": "both",
+              "preview": "(1) The bills discounted under Letter of Credit (LC) favouring a borrower may not be classified as NPA, when any othe..."
+            },
+            {
+              "rank": 3,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0009",
+              "page": 10,
+              "score": 0.5345,
+              "base_score": 0.4859,
+              "boost": 0.0486,
+              "source": "dense",
+              "preview": "(2) If it is classified as \u2018out of order\u2019 in respect of an Overdraft/ Cash Credit (OD/ CC); (3) If drawings are permi..."
+            }
+          ]
+        },
+        "5. Hybrid + Query Expansion + Config 4": {
+          "latency_ms": 81.72,
+          "raw_pool_size": 44,
+          "dedup_pool_size": 39,
+          "clause8_struct_0008_rank": 28,
+          "clause8_struct_0009_rank": 6,
+          "top3": [
+            {
+              "rank": 1,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0018",
+              "page": 17,
+              "score": 0.6662,
+              "base_score": 0.6056,
+              "boost": 0.0606,
+              "source": "both",
+              "preview": "appropriation of repayments2 etc. The borrower shall be apprised of the same at the time of loan sanction and also at..."
+            },
+            {
+              "rank": 2,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0010",
+              "page": 10,
+              "score": 0.6389,
+              "base_score": 0.5808,
+              "boost": 0.0581,
+              "source": "both",
+              "preview": "1 A bank shall report a credit card account as \u2018past due\u2019 to credit information companies (CICs) or levy penal charge..."
+            },
+            {
+              "rank": 3,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0013",
+              "page": 12,
+              "score": 0.6303,
+              "base_score": 0.573,
+              "boost": 0.0573,
+              "source": "dense",
+              "preview": "payment of interest, payment of interest becomes \u2018due\u2019 only after the moratorium or gestation period is over. Such am..."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "label": "NPA Query 3",
+      "query": "What is the definition of a non-performing asset in IRAC directions?",
+      "configs": {
+        "1. Dense Baseline": {
+          "latency_ms": 14.67,
+          "raw_pool_size": 25,
+          "dedup_pool_size": 25,
+          "clause8_struct_0008_rank": 15,
+          "clause8_struct_0009_rank": null,
+          "top3": [
+            {
+              "rank": 1,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0017",
+              "page": 16,
+              "score": 0.4812,
+              "base_score": 0.4812,
+              "boost": 0.0,
+              "source": "dense",
+              "preview": "category for a period of twelve months. A doubtful asset has all the weaknesses inherent in assets that were classifi..."
+            },
+            {
+              "rank": 2,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0005",
+              "page": 6,
+              "score": 0.4664,
+              "base_score": 0.4664,
+              "boost": 0.0,
+              "source": "dense",
+              "preview": "classified as such in terms of the \u2018Reserve Bank of India (Commercial Banks \u2013 Classification, Valuation and Operation..."
+            },
+            {
+              "rank": 3,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0047",
+              "page": 36,
+              "score": 0.4632,
+              "base_score": 0.4632,
+              "boost": 0.0,
+              "source": "dense",
+              "preview": "(4) The product-wise and stage-wise prudential floors for below \u201cloan product categories\u201d are as below:"
+            }
+          ]
+        },
+        "2. Dense + Config 4": {
+          "latency_ms": 17.79,
+          "raw_pool_size": 25,
+          "dedup_pool_size": 25,
+          "clause8_struct_0008_rank": 7,
+          "clause8_struct_0009_rank": null,
+          "top3": [
+            {
+              "rank": 1,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0017",
+              "page": 16,
+              "score": 0.5012,
+              "base_score": 0.4812,
+              "boost": 0.02,
+              "source": "dense",
+              "preview": "category for a period of twelve months. A doubtful asset has all the weaknesses inherent in assets that were classifi..."
+            },
+            {
+              "rank": 2,
+              "doc_id": "rbi_credit_risk_std_2026",
+              "chunk_id": "rbi_credit_risk_std_2026_struct_0004",
+              "page": 5,
+              "score": 0.4974,
+              "base_score": 0.4522,
+              "boost": 0.0452,
+              "source": "dense",
+              "preview": "independent legal and operational status, but with a similar mandate and a considerable number of joint owners. (xiii..."
+            },
+            {
+              "rank": 3,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0065",
+              "page": 39,
+              "score": 0.4866,
+              "base_score": 0.4566,
+              "boost": 0.03,
+              "source": "dense",
+              "preview": "83. The ECL on Investments shall also be subjected to product-wise and stage-wise prudential floors, depending on the..."
+            }
+          ]
+        },
+        "3. Dense + Query Expansion + Config 4": {
+          "latency_ms": 19.46,
+          "raw_pool_size": 25,
+          "dedup_pool_size": 25,
+          "clause8_struct_0008_rank": 19,
+          "clause8_struct_0009_rank": null,
+          "top3": [
+            {
+              "rank": 1,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0018",
+              "page": 17,
+              "score": 0.6747,
+              "base_score": 0.6134,
+              "boost": 0.0613,
+              "source": "dense",
+              "preview": "appropriation of repayments2 etc. The borrower shall be apprised of the same at the time of loan sanction and also at..."
+            },
+            {
+              "rank": 2,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0017",
+              "page": 16,
+              "score": 0.6522,
+              "base_score": 0.5929,
+              "boost": 0.0593,
+              "source": "dense",
+              "preview": "category for a period of twelve months. A doubtful asset has all the weaknesses inherent in assets that were classifi..."
+            },
+            {
+              "rank": 3,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0074",
+              "page": 45,
+              "score": 0.6277,
+              "base_score": 0.5706,
+              "boost": 0.0571,
+              "source": "dense",
+              "preview": "(i) The loss on revaluation of assets has to be booked in the bank's Profit & Loss Account. (ii)"
+            }
+          ]
+        },
+        "4. Hybrid (Dense + Lexical) + Config 4": {
+          "latency_ms": 91.44,
+          "raw_pool_size": 50,
+          "dedup_pool_size": 50,
+          "clause8_struct_0008_rank": 7,
+          "clause8_struct_0009_rank": null,
+          "top3": [
+            {
+              "rank": 1,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0017",
+              "page": 16,
+              "score": 0.5012,
+              "base_score": 0.4812,
+              "boost": 0.02,
+              "source": "dense",
+              "preview": "category for a period of twelve months. A doubtful asset has all the weaknesses inherent in assets that were classifi..."
+            },
+            {
+              "rank": 2,
+              "doc_id": "rbi_credit_risk_std_2026",
+              "chunk_id": "rbi_credit_risk_std_2026_struct_0004",
+              "page": 5,
+              "score": 0.4974,
+              "base_score": 0.4522,
+              "boost": 0.0452,
+              "source": "dense",
+              "preview": "independent legal and operational status, but with a similar mandate and a considerable number of joint owners. (xiii..."
+            },
+            {
+              "rank": 3,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0065",
+              "page": 39,
+              "score": 0.4866,
+              "base_score": 0.4566,
+              "boost": 0.03,
+              "source": "dense",
+              "preview": "83. The ECL on Investments shall also be subjected to product-wise and stage-wise prudential floors, depending on the..."
+            }
+          ]
+        },
+        "5. Hybrid + Query Expansion + Config 4": {
+          "latency_ms": 94.27,
+          "raw_pool_size": 50,
+          "dedup_pool_size": 50,
+          "clause8_struct_0008_rank": 19,
+          "clause8_struct_0009_rank": null,
+          "top3": [
+            {
+              "rank": 1,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0018",
+              "page": 17,
+              "score": 0.6747,
+              "base_score": 0.6134,
+              "boost": 0.0613,
+              "source": "dense",
+              "preview": "appropriation of repayments2 etc. The borrower shall be apprised of the same at the time of loan sanction and also at..."
+            },
+            {
+              "rank": 2,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0017",
+              "page": 16,
+              "score": 0.6522,
+              "base_score": 0.5929,
+              "boost": 0.0593,
+              "source": "dense",
+              "preview": "category for a period of twelve months. A doubtful asset has all the weaknesses inherent in assets that were classifi..."
+            },
+            {
+              "rank": 3,
+              "doc_id": "rbi_asset_class_irac_2026",
+              "chunk_id": "rbi_asset_class_irac_2026_struct_0074",
+              "page": 45,
+              "score": 0.6277,
+              "base_score": 0.5706,
+              "boost": 0.0571,
+              "source": "dense",
+              "preview": "(i) The loss on revaluation of assets has to be booked in the bank's Profit & Loss Account. (ii)"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

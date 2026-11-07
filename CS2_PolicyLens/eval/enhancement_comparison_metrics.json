@@ -1,0 +1,477 @@
+{
+  "benchmark_questions": 25,
+  "configurations": {
+    "baseline_dense": {
+      "recall_at_3": 0.96,
+      "recall_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "mrr": 0.91,
+      "raw_counts": {
+        "top3": 24,
+        "top5": 25,
+        "top10": 25
+      }
+    },
+    "dense_lexical_boost": {
+      "recall_at_3": 0.96,
+      "recall_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "mrr": 0.948,
+      "raw_counts": {
+        "top3": 24,
+        "top5": 25,
+        "top10": 25
+      }
+    },
+    "dense_lexical_denoised": {
+      "recall_at_3": 0.96,
+      "recall_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "mrr": 0.948,
+      "raw_counts": {
+        "top3": 24,
+        "top5": 25,
+        "top10": 25
+      }
+    }
+  },
+  "focus_questions": {
+    "Q06": {
+      "baseline_dense": 1,
+      "dense_lexical_boost": 1,
+      "dense_lexical_denoised": 1
+    },
+    "Q10": {
+      "baseline_dense": 1,
+      "dense_lexical_boost": 1,
+      "dense_lexical_denoised": 1
+    },
+    "Q23": {
+      "baseline_dense": 4,
+      "dense_lexical_boost": 5,
+      "dense_lexical_denoised": 5
+    }
+  },
+  "per_question": [
+    {
+      "question_id": "Q01",
+      "question": "What is the mandatory notice requirement before an agency bank recovers excess pension payments from a pensioner?",
+      "gold_doc": "rbi_pension_2026",
+      "gold_page": 6,
+      "rank_baseline": 1,
+      "rank_lexical": 1,
+      "rank_denoised": 1,
+      "change": "SAME"
+    },
+    {
+      "question_id": "Q02",
+      "question": "Under what condition can an agency bank continue an either or survivor pension account after the death of a pensioner?",
+      "gold_doc": "rbi_pension_2026",
+      "gold_page": 12,
+      "rank_baseline": 2,
+      "rank_lexical": 1,
+      "rank_denoised": 1,
+      "change": "UP"
+    },
+    {
+      "question_id": "Q03",
+      "question": "What rate of compensation is an agency bank required to pay to a pensioner for delay in credit of pension beyond the due date?",
+      "gold_doc": "rbi_pension_2026",
+      "gold_page": 13,
+      "rank_baseline": 1,
+      "rank_lexical": 1,
+      "rank_denoised": 1,
+      "change": "SAME"
+    },
+    {
+      "question_id": "Q04",
+      "question": "Which circular dated 30.08.2002 regarding the Single Window System for pension reimbursement was repealed by the Master Direction?",
+      "gold_doc": "rbi_pension_2026",
+      "gold_page": 18,
+      "rank_baseline": 1,
+      "rank_lexical": 1,
+      "rank_denoised": 1,
+      "change": "SAME"
+    },
+    {
+      "question_id": "Q05",
+      "question": "What is the circular number and date for the repealed instruction on recording of PPO numbers in the passbook of pensioners?",
+      "gold_doc": "rbi_pension_2026",
+      "gold_page": 20,
+      "rank_baseline": 1,
+      "rank_lexical": 1,
+      "rank_denoised": 1,
+      "change": "SAME"
+    },
+    {
+      "question_id": "Q06",
+      "question": "What is the circular reference number of the repealed instruction dated 14.10.2009 for pension withdrawal facilities through public sector banks?",
+      "gold_doc": "rbi_pension_2026",
+      "gold_page": 19,
+      "rank_baseline": 1,
+      "rank_lexical": 1,
+      "rank_denoised": 1,
+      "change": "SAME"
+    },
+    {
+      "question_id": "Q07",
+      "question": "How should agency banks facilitate pension withdrawal when an elderly pensioner is physically incapacitated and unable to sign or provide thumb impressions?",
+      "gold_doc": "rbi_pension_2026",
+      "gold_page": 7,
+      "rank_baseline": 1,
+      "rank_lexical": 1,
+      "rank_denoised": 1,
+      "change": "SAME"
+    },
+    {
+      "question_id": "Q08",
+      "question": "What recovery procedure must an agency bank follow when pension overpayment occurs due to its own bank-attributed operational errors?",
+      "gold_doc": "rbi_pension_2026",
+      "gold_page": 21,
+      "rank_baseline": 1,
+      "rank_lexical": 1,
+      "rank_denoised": 1,
+      "change": "SAME"
+    },
+    {
+      "question_id": "Q09",
+      "question": "What undertaking is obtained from pensioners regarding future refund of excess pension credited to their accounts?",
+      "gold_doc": "rbi_pension_2026",
+      "gold_page": 6,
+      "rank_baseline": 1,
+      "rank_lexical": 1,
+      "rank_denoised": 1,
+      "change": "SAME"
+    },
+    {
+      "question_id": "Q10",
+      "question": "What is the minimum threshold of banking outlets for a commercial bank to fall under the mandatory Internal Ombudsman framework?",
+      "gold_doc": "rbi_io_comm_2026",
+      "gold_page": 2,
+      "rank_baseline": 1,
+      "rank_lexical": 1,
+      "rank_denoised": 1,
+      "change": "SAME"
+    },
+    {
+      "question_id": "Q11",
+      "question": "What rank must an officer hold to be eligible for appointment as an Internal Ombudsman in a commercial bank?",
+      "gold_doc": "rbi_io_comm_2026",
+      "gold_page": 4,
+      "rank_baseline": 1,
+      "rank_lexical": 1,
+      "rank_denoised": 1,
+      "change": "SAME"
+    },
+    {
+      "question_id": "Q12",
+      "question": "Within how many working days must a commercial bank inform the Reserve Bank of India of a sudden vacancy in the office of the Internal Ombudsman?",
+      "gold_doc": "rbi_io_comm_2026",
+      "gold_page": 6,
+      "rank_baseline": 1,
+      "rank_lexical": 1,
+      "rank_denoised": 1,
+      "change": "SAME"
+    },
+    {
+      "question_id": "Q13",
+      "question": "Is the office of the Internal Ombudsman permitted to handle customer grievances received directly from members of the public?",
+      "gold_doc": "rbi_io_comm_2026",
+      "gold_page": 8,
+      "rank_baseline": 1,
+      "rank_lexical": 1,
+      "rank_denoised": 1,
+      "change": "SAME"
+    },
+    {
+      "question_id": "Q14",
+      "question": "What software architecture must a bank put in place to manage grievance records and provide case access to the Internal Ombudsman?",
+      "gold_doc": "rbi_io_comm_2026",
+      "gold_page": 10,
+      "rank_baseline": 1,
+      "rank_lexical": 1,
+      "rank_denoised": 1,
+      "change": "SAME"
+    },
+    {
+      "question_id": "Q15",
+      "question": "In the quarterly reporting format Annexure, what metric is reported under item 19 regarding bank decisions on IO recommendations?",
+      "gold_doc": "rbi_io_comm_2026",
+      "gold_page": 16,
+      "rank_baseline": 1,
+      "rank_lexical": 1,
+      "rank_denoised": 1,
+      "change": "SAME"
+    },
+    {
+      "question_id": "Q16",
+      "question": "What specific information is captured in serial number 20 of the Internal Ombudsman quarterly reporting schedule?",
+      "gold_doc": "rbi_io_comm_2026",
+      "gold_page": 16,
+      "rank_baseline": 1,
+      "rank_lexical": 1,
+      "rank_denoised": 1,
+      "change": "SAME"
+    },
+    {
+      "question_id": "Q17",
+      "question": "Under the revised SEBI KYC circular for non-residents, is a foreign client required to be physically in India during account opening?",
+      "gold_doc": "sebi_kyc_nri_2026",
+      "gold_page": 2,
+      "rank_baseline": 1,
+      "rank_lexical": 1,
+      "rank_denoised": 1,
+      "change": "SAME"
+    },
+    {
+      "question_id": "Q18",
+      "question": "What anti-spoofing feature must Video In-Person Verification (VIPV) infrastructure possess to confirm that interactions are live and not pre-recorded?",
+      "gold_doc": "sebi_kyc_nri_2026",
+      "gold_page": 7,
+      "rank_baseline": 1,
+      "rank_lexical": 1,
+      "rank_denoised": 1,
+      "change": "SAME"
+    },
+    {
+      "question_id": "Q19",
+      "question": "Which entity bears ultimate regulatory responsibility for KYC compliance when relying on records obtained from CKYCRR?",
+      "gold_doc": "sebi_kyc_nri_2026",
+      "gold_page": 8,
+      "rank_baseline": 1,
+      "rank_lexical": 1,
+      "rank_denoised": 1,
+      "change": "SAME"
+    },
+    {
+      "question_id": "Q20",
+      "question": "What alternative document is permissible for address verification if an officially valid document of a foreign national lacks residential address details?",
+      "gold_doc": "sebi_kyc_nri_2026",
+      "gold_page": 5,
+      "rank_baseline": 1,
+      "rank_lexical": 1,
+      "rank_denoised": 1,
+      "change": "SAME"
+    },
+    {
+      "question_id": "Q21",
+      "question": "Which earlier SEBI circular dated August 22, 2011 regarding trading account opening processes is superseded by the 2026 KYC circular?",
+      "gold_doc": "sebi_kyc_nri_2026",
+      "gold_page": 9,
+      "rank_baseline": 1,
+      "rank_lexical": 1,
+      "rank_denoised": 1,
+      "change": "SAME"
+    },
+    {
+      "question_id": "Q22",
+      "question": "Which authority retains the sole discretion for accrediting an agency bank to conduct specific Central or State Government business?",
+      "gold_doc": "rbi_agency_comm_2026",
+      "gold_page": 5,
+      "rank_baseline": 2,
+      "rank_lexical": 2,
+      "rank_denoised": 2,
+      "change": "SAME"
+    },
+    {
+      "question_id": "Q23",
+      "question": "In Annex 1 of the agency bank directions, which agency bank is listed under serial number 2?",
+      "gold_doc": "rbi_agency_comm_2026",
+      "gold_page": 16,
+      "rank_baseline": 4,
+      "rank_lexical": 5,
+      "rank_denoised": 5,
+      "change": "DOWN"
+    },
+    {
+      "question_id": "Q24",
+      "question": "What professional audit certificate must be furnished by an agency bank in Annex 2B to claim agency commission for Government transactions?",
+      "gold_doc": "rbi_agency_comm_2026",
+      "gold_page": 21,
+      "rank_baseline": 2,
+      "rank_lexical": 1,
+      "rank_denoised": 1,
+      "change": "UP"
+    },
+    {
+      "question_id": "Q25",
+      "question": "How does the Reserve Bank treat Tax Deducted at Source (TDS) on GST when disbursing agency commission payments to accredited banks?",
+      "gold_doc": "rbi_agency_comm_2026",
+      "gold_page": 11,
+      "rank_baseline": 1,
+      "rank_lexical": 1,
+      "rank_denoised": 1,
+      "change": "SAME"
+    }
+  ],
+  "npa_case_studies": [
+    {
+      "label": "Query 1",
+      "query": "What are substandard, doubtful, and loss assets in asset classification?",
+      "before_top3": [
+        {
+          "rank": 1,
+          "doc_id": "rbi_asset_class_irac_2026",
+          "page": 16,
+          "score": 0.6268,
+          "preview": "category for a period of twelve months. A doubtful asset has all the weaknesses inherent in assets that were classified as substandard, with the ad..."
+        },
+        {
+          "rank": 2,
+          "doc_id": "dfs_nabfid_rules_2022",
+          "page": 57,
+          "score": 0.4864,
+          "preview": "(F) Property, Plant and Equipment (i) Classification shall be given as:"
+        },
+        {
+          "rank": 3,
+          "doc_id": "rbi_asset_class_irac_2026",
+          "page": 36,
+          "score": 0.4651,
+          "preview": "(4) The product-wise and stage-wise prudential floors for below \u201cloan product categories\u201d are as below:"
+        }
+      ],
+      "after_top3": [
+        {
+          "rank": 1,
+          "doc_id": "rbi_asset_class_irac_2026",
+          "page": 16,
+          "score": 0.7768,
+          "base_score": 0.6268,
+          "boost": 0.15,
+          "preview": "category for a period of twelve months. A doubtful asset has all the weaknesses inherent in assets that were classified as substandard, with the ad..."
+        },
+        {
+          "rank": 2,
+          "doc_id": "dfs_nabfid_rules_2022",
+          "page": 57,
+          "score": 0.5464,
+          "base_score": 0.4864,
+          "boost": 0.06,
+          "preview": "(F) Property, Plant and Equipment (i) Classification shall be given as:"
+        },
+        {
+          "rank": 3,
+          "doc_id": "rbi_asset_class_irac_2026",
+          "page": 10,
+          "score": 0.507,
+          "base_score": 0.432,
+          "boost": 0.075,
+          "preview": "1 A bank shall report a credit card account as \u2018past due\u2019 to credit information companies (CICs) or levy penal charges, viz. late payment charges, ..."
+        }
+      ]
+    },
+    {
+      "label": "Query 2",
+      "query": "When does a credit facility get classified as a non-performing asset or out of order?",
+      "before_top3": [
+        {
+          "rank": 1,
+          "doc_id": "rbi_credit_risk_std_2026",
+          "page": 43,
+          "score": 0.5011,
+          "preview": "| Sr. No. | Instruments | Credit Conversion Factor (%) | | --- | --- | --- | | 3. | Forward asset purchases, forward deposits and partly paid share..."
+        },
+        {
+          "rank": 2,
+          "doc_id": "rbi_mpr_oct_2026",
+          "page": 35,
+          "score": 0.4968,
+          "preview": "Within services sector, 'non-banking financial companies' (NBFCs) remained the largest recipient OCTOBER 2026 Chart II.26: Credit Growth of Service..."
+        },
+        {
+          "rank": 3,
+          "doc_id": "rbi_asset_class_irac_2026",
+          "page": 10,
+          "score": 0.4932,
+          "preview": "1 A bank shall report a credit card account as \u2018past due\u2019 to credit information companies (CICs) or levy penal charges, viz. late payment charges, ..."
+        }
+      ],
+      "after_top3": [
+        {
+          "rank": 1,
+          "doc_id": "rbi_asset_class_irac_2026",
+          "page": 10,
+          "score": 0.6859,
+          "base_score": 0.4859,
+          "boost": 0.2,
+          "preview": "(2) If it is classified as \u2018out of order\u2019 in respect of an Overdraft/ Cash Credit (OD/ CC); (3) If drawings are permitted for a continuous period o..."
+        },
+        {
+          "rank": 2,
+          "doc_id": "rbi_asset_class_irac_2026",
+          "page": 7,
+          "score": 0.6856,
+          "base_score": 0.4856,
+          "boost": 0.2,
+          "preview": "as \u2018out of order\u2019 if any of the following conditions get satisfied: (i) the outstanding balance remains continuously in excess of the sanctioned li..."
+        },
+        {
+          "rank": 3,
+          "doc_id": "rbi_asset_class_irac_2026",
+          "page": 10,
+          "score": 0.6432,
+          "base_score": 0.4932,
+          "boost": 0.15,
+          "preview": "1 A bank shall report a credit card account as \u2018past due\u2019 to credit information companies (CICs) or levy penal charges, viz. late payment charges, ..."
+        }
+      ]
+    },
+    {
+      "label": "Query 3",
+      "query": "What is the definition of a non-performing asset in IRAC directions?",
+      "before_top3": [
+        {
+          "rank": 1,
+          "doc_id": "rbi_asset_class_irac_2026",
+          "page": 16,
+          "score": 0.4812,
+          "preview": "category for a period of twelve months. A doubtful asset has all the weaknesses inherent in assets that were classified as substandard, with the ad..."
+        },
+        {
+          "rank": 2,
+          "doc_id": "rbi_asset_class_irac_2026",
+          "page": 6,
+          "score": 0.4664,
+          "preview": "classified as such in terms of the \u2018Reserve Bank of India (Commercial Banks \u2013 Classification, Valuation and Operation of Investment Portfolio) Dire..."
+        },
+        {
+          "rank": 3,
+          "doc_id": "rbi_asset_class_irac_2026",
+          "page": 36,
+          "score": 0.4632,
+          "preview": "(4) The product-wise and stage-wise prudential floors for below \u201cloan product categories\u201d are as below:"
+        }
+      ],
+      "after_top3": [
+        {
+          "rank": 1,
+          "doc_id": "rbi_credit_risk_std_2026",
+          "page": 5,
+          "score": 0.5422,
+          "base_score": 0.4522,
+          "boost": 0.09,
+          "preview": "independent legal and operational status, but with a similar mandate and a considerable number of joint owners. (xiii) \u201cNon-performing assets (NPAs..."
+        },
+        {
+          "rank": 2,
+          "doc_id": "rbi_asset_class_irac_2026",
+          "page": 16,
+          "score": 0.5262,
+          "base_score": 0.4812,
+          "boost": 0.045,
+          "preview": "category for a period of twelve months. A doubtful asset has all the weaknesses inherent in assets that were classified as substandard, with the ad..."
+        },
+        {
+          "rank": 3,
+          "doc_id": "rbi_asset_class_irac_2026",
+          "page": 5,
+          "score": 0.5185,
+          "base_score": 0.4285,
+          "boost": 0.09,
+          "preview": "Acquisition at Discount: The asset is purchased or originated at a discount,] borrower\u2019s financial difficulty, which would not have been offered un..."
+        }
+      ]
+    }
+  ]
+}
