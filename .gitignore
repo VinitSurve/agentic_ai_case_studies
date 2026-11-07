@@ -33,3 +33,7 @@ vector_store/
 CS2_PolicyLens/data/pdfs/
 *.pdf
 !CS1_ClaimFast/report/report_CS1.pdf
+
+# Local-only demo screenshot generator and artifacts (retained locally only)
+CS1_ClaimFast/code/generate_demo_screenshots.py
+CS1_ClaimFast/demo/screenshots/

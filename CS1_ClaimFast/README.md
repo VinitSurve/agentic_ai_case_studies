@@ -60,10 +60,10 @@ CS1_ClaimFast/
 │   ├── metrics_summary.json       # Summary dictionary of all verified metrics
 │   └── final_metrics_reconciled.json # Comprehensive reconciled metrics
 ├── error_analysis/
-│   ├── error_analysis.csv         # Detailed catalogue of all 272 inspected failures
+│   ├── error_analysis.csv         # Detailed catalogue of all 272 audited failures
 │   └── README.md                  # Error taxonomy, case studies, and mitigation guide
 ├── demo/
-│   ├── demo_script.md             # 3-minute executive demo walkthrough
+│   ├── demo_script.md             # 3-minute executive demo walkthrough & capture checklist
 │   └── run_demo.py                # Interactive CLI demo showcasing key edge cases
 └── report/
     ├── report_CS1.pdf             # Formatted 5-page publication-quality final report
@@ -74,7 +74,32 @@ CS1_ClaimFast/
 
 ---
 
-## 3. Benchmark Results & Key Findings
+## 3. Demo Evidence & Verification Walkthrough
+
+The project provides an interactive demonstration script ([`demo/run_demo.py`](demo/run_demo.py)) and a step-by-step walkthrough ([`demo/demo_script.md`](demo/demo_script.md)) designed for a 3-minute presentation.
+
+### Interactive Demonstration Scenarios:
+1. **Scenario 1: The Rule A Door-Scratch Boundary (`TEST005`)**: Demonstrates how Zero-Shot and Few-Shot ($k=3, 5, 8$) anchor on "smashed quarter glass" and misclassify the claim as `glass_only`, whereas **Structured Reasoning** detects the scratched door panel and correctly outputs `own_damage`.
+2. **Scenario 2: Roadway Feature vs Geographic Location (`TEST011`)**: Demonstrates that few-shot prompts hallucinate `"blind turn"` as the location, while **Structured Reasoning** recognizes it as a roadway feature and outputs `null`.
+3. **Scenario 3: Third-Party Collision & Safety Triage (`TEST001`)**: Demonstrates 100.0% high-urgency triage recall when bodily injury or severe front-end damage occurs.
+
+### Manual Screenshot Capture Checklist
+For final submission evidence, genuine terminal screenshots can be captured directly from your environment using macOS Screenshot (`Cmd + Shift + 4`):
+
+| Target Screenshot | Terminal Command / Source | Content to Capture |
+|---|---|---|
+| **01 — Input Message** | `head -n 5 data/test.jsonl` | Verbatim text of `TEST005` with vehicle reg, Bandra location, and door scratching. |
+| **02 — Zero-Shot Output** | `python CS1_ClaimFast/demo/run_demo.py` | Strategy A output displaying JSON and `glass_only` misclassification. |
+| **03 — Few-Shot Output** | `python CS1_ClaimFast/demo/run_demo.py` | Strategy B3 output displaying $k=8$ formatting and exemplar grounding. |
+| **04 — Structured Reasoning Output** | `python CS1_ClaimFast/demo/run_demo.py` | Strategy C output displaying correct `own_damage` classification. |
+| **05 — Strategy Comparison** | `python CS1_ClaimFast/demo/run_demo.py` | Comparison matrix showing side-by-side adjudication across all configurations. |
+| **06 — Evaluation Results** | `python CS1_ClaimFast/code/compute_metrics.py` | Terminal output showing 900 jobs, 99.44% valid schema, and Macro-F1. |
+| **07 — Error Analysis** | `head -n 25 error_analysis/error_analysis.csv` | Failure categories, root cause explanations, and proposed fixes. |
+| **08 — Project Reproducibility** | `tree -L 2 CS1_ClaimFast/` | Verified directory tree and reproducible execution scripts. |
+
+---
+
+## 4. Benchmark Results & Key Findings
 
 All metrics reflect the complete **900 evaluation jobs** ($N=180$ per strategy). Non-success jobs are penalized as zero-score mismatches across all fields:
 
@@ -96,7 +121,7 @@ All metrics reflect the complete **900 evaluation jobs** ($N=180$ per strategy).
 
 ---
 
-## 4. Setup & Reproducibility Guide
+## 5. Setup & Reproducibility Guide
 
 ### Step 1: Environment Setup
 Ensure Python 3.11+ is installed. Clone the repository and install dependencies:
@@ -124,7 +149,7 @@ GROQ_API_KEY_2=gsk_your_backup_key_here  # Optional for failover
 GROQ_MODEL=qwen/qwen3.8-27b
 ```
 
-### Step 3: Run Interactive Demo
+### Step 3: Run Interactive 3-Minute Demo
 Experience the comparative performance across prompt strategies in 3 minutes:
 ```bash
 python CS1_ClaimFast/demo/run_demo.py
@@ -146,7 +171,7 @@ The output will be generated at `CS1_ClaimFast/report/report_CS1.pdf`.
 
 ---
 
-## 5. Security & Secret Protection
+## 6. Security & Secret Protection
 
 - **Zero Key Leaks**: All raw API keys are sanitized in logging with `[REDACTED_key_X]`.
 - **Git Hygiene**: `.env`, `.venv`, credentials, and local caches are strictly excluded via `.gitignore`.

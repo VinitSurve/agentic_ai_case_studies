@@ -8,7 +8,7 @@ This repository contains production-grade case studies developed for the **Agent
 
 | Case Study | Subtitle & Domain | Primary Technology Stack | Evaluation Scope | Current Status |
 |---|---|---|---|:---:|
-| **[CS1 – ClaimFast](CS1_ClaimFast/)** | Automated Motor Insurance Claim Triage & Entity Extraction | `qwen/qwen3.8-27b`, Groq Cloud, Python 3.11, ReportLab | 900 evaluation jobs (60 held-out test messages × 5 prompt configurations × 3 runs) | **100% COMPLETE & AUDITED** |
+| **[CS1 – ClaimFast](CS1_ClaimFast/)** | Automated Motor Insurance Claim Triage & Entity Extraction | `qwen/qwen3.8-27b`, Groq Cloud, Python 3.11, ReportLab | 900 evaluation jobs (60 held-out test messages × 5 prompt configurations × 3 runs) | **100% COMPLETE & AUDITED** (Report, Code & Results Published) |
 | **[CS2 – PolicyLens](CS2_PolicyLens/)** | Regulatory Document Intelligence & Retrieval Engine | PyMuPDF, Tesseract OCR, ChromaDB, BGE-large embeddings | 40 official Indian regulatory PDFs (1,123 pages, RBI/SEBI/IRDAI) | **PHASES 1 & 2 COMPLETE** (Corpus & Manifest Verified) |
 
 ---
@@ -23,13 +23,14 @@ To build an automated First Notice of Loss (FNOL) triage and entity extraction s
 - **Safety Triage Precision**: **100.0% precision and recall on high urgency and bodily injury triage** (240 / 240 high-urgency instances). Zero injury claims were missed.
 - **Category Classification**: **0.9844 Macro-F1** across 6 claim categories (`own_damage`, `third_party_liability`, `theft`, `total_loss`, `glass_only`, `not_a_claim`).
 - **Structured Reasoning Breakthrough**: `structured_reasoning` achieved the highest classification Macro-F1 (**0.9870**) and was the *only* strategy to correctly adjudicate the complex `TEST005` door-scratch edge case under Rule A, while running **23.8% faster** (510ms) and costing **31.8% less** ($0.38/1k claims) than few-shot $k=8$.
-- **Deliverables**:
-  - Publication Report: [`CS1_ClaimFast/report/report_CS1.pdf`](CS1_ClaimFast/report/report_CS1.pdf) (5-page PDF)
-  - Dataset: [`CS1_ClaimFast/data/test.jsonl`](CS1_ClaimFast/data/test.jsonl) (60 records) and [`CS1_ClaimFast/data/dev.jsonl`](CS1_ClaimFast/data/dev.jsonl) (20 records)
-  - Prompt Library: Standardized prompts in [`CS1_ClaimFast/prompts/`](CS1_ClaimFast/prompts/)
-  - Raw Outputs & Flattened Results: [`CS1_ClaimFast/outputs/results.csv`](CS1_ClaimFast/outputs/results.csv) (900 rows)
-  - Error Analysis: [`CS1_ClaimFast/error_analysis/error_analysis.csv`](CS1_ClaimFast/error_analysis/error_analysis.csv) (272 audited failures)
-  - Interactive Demo: [`CS1_ClaimFast/demo/run_demo.py`](CS1_ClaimFast/demo/run_demo.py)
+
+### Deliverables
+- **Publication Report**: [`CS1_ClaimFast/report/report_CS1.pdf`](CS1_ClaimFast/report/report_CS1.pdf) (5-page PDF)
+- **Dataset**: [`CS1_ClaimFast/data/test.jsonl`](CS1_ClaimFast/data/test.jsonl) (60 records) and [`CS1_ClaimFast/data/dev.jsonl`](CS1_ClaimFast/data/dev.jsonl) (20 records)
+- **Prompt Library**: Standardized prompts in [`CS1_ClaimFast/prompts/`](CS1_ClaimFast/prompts/)
+- **Raw Outputs & Flattened Results**: [`CS1_ClaimFast/outputs/results.csv`](CS1_ClaimFast/outputs/results.csv) (900 rows)
+- **Error Analysis**: [`CS1_ClaimFast/error_analysis/error_analysis.csv`](CS1_ClaimFast/error_analysis/error_analysis.csv) (272 audited failures)
+- **Interactive Demo**: [`CS1_ClaimFast/demo/run_demo.py`](CS1_ClaimFast/demo/run_demo.py) & [`CS1_ClaimFast/demo/demo_script.md`](CS1_ClaimFast/demo/demo_script.md)
 
 ---
 
@@ -70,6 +71,8 @@ agentic_ai_case_studies/
 │   ├── outputs/
 │   ├── error_analysis/
 │   ├── demo/
+│   │   ├── demo_script.md
+│   │   └── run_demo.py
 │   └── report/
 │       └── report_CS1.pdf         # 5-page publication-quality final report
 └── CS2_PolicyLens/                # Case Study 2: Phases 1 & 2 Complete
@@ -88,13 +91,16 @@ Clone the repository:
 ```bash
 git clone https://github.com/VinitSurve/agentic_ai_case_studies.git
 cd agentic_ai_case_studies
-```
 
-Create and activate a virtual environment:
-```bash
+# Create and activate virtual environment
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r CS1_ClaimFast/requirements.txt
+```
+
+Run the interactive ClaimFast demo:
+```bash
+python CS1_ClaimFast/demo/run_demo.py
 ```
 
 ---

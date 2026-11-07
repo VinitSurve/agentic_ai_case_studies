@@ -66,3 +66,4 @@ This directory contains the systematic diagnostic audit of all **272 failed pred
 ### Case Study C: Casing Normalization Dominance
 - 176 out of 272 errors (64.7%) were caused solely by casing differences in location extraction (e.g. model predicting `"mall basement"` instead of gold `"Mall basement"`).
 - When case-insensitive normalization is applied, benchmark exact match accuracy increases from **69.8% to 81.4%**.
+
