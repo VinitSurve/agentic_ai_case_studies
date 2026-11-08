@@ -58,6 +58,19 @@ class RegulatoryChunker:
         words = len(re.findall(r"\S+", text))
         return max(1, int(words * 1.3))
 
+    @staticmethod
+    def _is_major_chapter_heading(text: str) -> bool:
+        """
+        Detects major CHAPTER headings (e.g., 'Chapter II: Classification as Non-Performing Asset').
+        Excludes Table of Contents entries containing dot leaders ('...' or '…').
+        """
+        stripped = text.strip()
+        if not re.match(r"^CHAPTER\s+([IVXLCDM]+|\d+)\b", stripped, re.IGNORECASE):
+            return False
+        if ".." in stripped or "…" in stripped:
+            return False
+        return True
+
     def chunk(
         self,
         parsed_doc: ParsedDocument,
@@ -147,10 +160,13 @@ class RegulatoryChunker:
             if not block_text and not block.table_markdown:
                 continue
 
-            # Update heading context when a heading or title is encountered
+            # Flush pending chunk and update heading context on major CHAPTER boundaries
             if block.block_type in (BlockType.TITLE, BlockType.HEADING):
+                if self._is_major_chapter_heading(block_text):
+                    emit_current_chunk()
                 if len(block_text) < 120 and not block_text.endswith("."):
-                    current_heading = block_text
+                    if not re.match(r"^\([a-z\d]+\)\s+", block_text, re.IGNORECASE):
+                        current_heading = block_text
 
             # Handle Table Blocks
             if block.block_type == BlockType.TABLE and block.table_markdown:

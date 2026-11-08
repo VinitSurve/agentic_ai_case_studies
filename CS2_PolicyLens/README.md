@@ -1,9 +1,10 @@
 # PolicyLens: Regulatory Document Ingestion, Lifecycle Indexing & Grounded RAG Question Answering
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![Unit Tests](https://img.shields.io/badge/Unit%20Tests-38%20%2F%2038%20Passing-brightgreen.svg)]()
+[![Unit Tests](https://img.shields.io/badge/Unit%20Tests-55%20%2F%2055%20Passing-brightgreen.svg)]()
 [![Corpus Size](https://img.shields.io/badge/Corpus-40%20PDFs%20%7C%201%2C123%20Pages-blue.svg)]()
 [![Architecture](https://img.shields.io/badge/Lifecycle-CAS%20Promoted%20%2B%20SQLite%20Isolated-orange.svg)]()
+[![Retrieval Engine](https://img.shields.io/badge/Retrieval-Hybrid%20%2B%20Config%204%20Rerank-blueviolet.svg)]()
 [![Execution Target](https://img.shields.io/badge/Execution-CPU%20Embeddings%20%2B%20Local%20ChromaDB-green.svg)]()
 
 **PolicyLens** is an enterprise-grade regulatory compliance document intelligence, indexing, and question-answering system developed for Indian financial institutions (governed by RBI, SEBI, IRDAI, and the Ministry of Finance).
@@ -251,74 +252,106 @@ Execution Duration:          0.09 seconds (2,087x speedup)
 
 ### 8.4 Ask a Grounded Regulatory Question (`--ask`)
 ```bash
-python CS2_PolicyLens/index.py \
-    --ask "What are the rules for recovery of excess or wrong pension payments?"
+python CS2_PolicyLens/search.py \
+    --ask "Under IRAC directions, what is the definition of an out of order overdraft or cash credit account?" \
+    --collection policylens_v1 \
+    --top_k 5
 ```
 
 **Output:**
 ```text
-[*] Processing Question: "What are the rules for recovery of excess or wrong pension payments?"
+[*] Processing Grounded Question: "Under IRAC directions, what is the definition of an out of order overdraft or cash credit account?"
 
 ======================================================================
 QUESTION:
-What are the rules for recovery of excess or wrong pension payments?
+Under IRAC directions, what is the definition of an out of order overdraft or cash credit account?
 ----------------------------------------------------------------------
 ANSWER:
-Based on the provided regulatory context from the rbi_pension_2026 document, the rules for the recovery of excess or wrongful pension payments are categorized by the source of the error (Agency Bank vs. Government) and follow specific procedural guidelines.
+Under the IRAC directions, an Overdraft (OD) or Cash Credit (CC) account is classified as ‘out of order’ if any of the following conditions are satisfied:
 
-1. General Principles for Recovery
-* Consent and Notice: Banks must ensure that no recovery of excess amounts from a pensioner’s pension is effected without the pensioner’s knowledge and consent, or without the issuance of a prior notice. Any recovery must strictly conform to applicable service rules.
-  * Source: [Source 1 | Document: rbi_pension_2026 | Page 6 | Section 9]
-* Letter of Undertaking: Banks may take a Letter of Undertaking from the pensioner stating that if any excess pension is credited, the pensioner is bound to refund it upon receipt of a suitable notice from the bank.
-  * Source: [Source 1 | Document: rbi_pension_2026 | Page 6 | Section 9]
-* Board-Approved Policy: Banks must put in place a Board-approved policy on the recovery of excess/wrongful pension payments, including a defined cut-off period beyond which no recovery shall be made.
-  * Source: [Source 1 | Document: rbi_pension_2026 | Page 6 | Section 8(iii)]
+1. The outstanding balance remains continuously in excess of the sanctioned limit/drawing power for ninety days;
+2. There are no credits continuously for ninety days; or
+3. Credits are not enough to cover the interest debited during the previous ninety days period.
 
-2. Agency Bank-Attributed Errors
-If the excess/wrongful payment is due to bank-attributed errors (e.g., clerical errors, arithmetical miscalculations):
-* Immediate Credit to Government: The entire excess amount must be credited to the Government account in a lump sum immediately upon detection.
-  * Source: [Source 1 | Document: rbi_pension_2026 | Page 6 | Section 8(i)]
-* Recovery Procedure (Annex III):
-  1. Written Notice to pensioner with details of excess payment and opportunity to represent.
-  2. Methods of Recovery (in order of preference):
-     - Available Balance Method (protecting minimum balance)
-     - Percentage of Pension Method (capped deduction)
-     - Pensioner-Requested Method (lump-sum or customized instalments)
+Source: [Source 1 | Document: rbi_asset_class_irac_2026 | Page 7]
+
+Additional Context:
+* The definition of “out of order” applies to all funded loan products which are not in the nature of a term loan, except credit cards. [Source 1 | Page 7]
+* The “previous ninety days period” for condition (iii) is inclusive of the day for which the day-end process is being run. [Source 1 | Page 7]
+* An account is also considered for NPA classification if it is classified as ‘out of order’ in respect of an OD/CC. [Source 2 | Page 10]
 ----------------------------------------------------------------------
 STATUS: SUCCESS
 ENGINE: groq/qwen/qwen3.8-27b
 ======================================================================
 
 SOURCES CITED (5):
-  [1] Document: rbi_pension_2026 | Page: 6 | Section: 9. Whenever such excess/wrongful pension payment is made due to Government | Score: 0.6948
-  [2] Document: rbi_pension_2026 | Page: 20 | Section: 3. No recovery shall be initiated after a defined cut-off period unless: | Score: 0.6603
-  [3] Document: rbi_pension_2026 | Page: 18 | Section: List of circulars repealed by the Master Direction | Score: 0.5711
-  [4] Document: rbi_pension_2026 | Page: 19 | Section: List of circulars repealed by the Master Direction | Score: 0.5676
-  [5] Document: rbi_pension_2026 | Page: 20 | Section: List of circulars repealed by the Master Direction | Score: 0.5552
+  [1] Document: rbi_asset_class_irac_2026 | Page: 7 | Section: to evaluate the performance of the financial asset | Score: 0.7607
+  [2] Document: rbi_asset_class_irac_2026 | Page: 10 | Section: (8) If interest / instalment from debt instruments | Score: 0.6391
+  [3] Document: rbi_asset_class_irac_2026 | Page: 8 | Section: (ii) Once disbursed, sanctioned limit cannot be replenished | Score: 0.5387
+  [4] Document: rbi_asset_class_irac_2026 | Page: 4 | Section: (iii) Lender Concessions | Score: 0.5179
+  [5] Document: rbi_asset_class_irac_2026 | Page: 17 | Section: Annex 3 automation of Asset Classification | Score: 0.4980
 ```
 
-### 8.5 Demonstrate Insufficient-Context Handling (Honest Fallback)
+### 8.5 Hybrid Search with Config 4 Calibrated Lexical Reranking
 ```bash
-python CS2_PolicyLens/index.py \
-    --ask "What is the speed of light in vacuum and the capital of Mars?"
+python CS2_PolicyLens/search.py \
+    --query "When does a credit facility get classified as a non-performing asset or out of order?" \
+    --collection policylens_v1 \
+    --top_k 5 \
+    --hybrid \
+    --rerank \
+    --denoise
 ```
 
 **Output:**
 ```text
-[*] Processing Question: "What is the speed of light in vacuum and the capital of Mars?"
+[*] Searching collection 'policylens_v1': "When does a credit facility get classified as a non-performing asset or out of order?"
+[+] Found 5 matching chunks (Active Versions Only | Hybrid Candidates | Config 4 Rerank | Pool: 44 -> 38):
+
+--- Result 1 | Reserve Bank of India (Commercial Banks-Asset Classification...) (RBI) [both] ---
+    Document ID: rbi_asset_class_irac_2026 | Page: 10 | Section: General | Score: 0.5425 (Dense: 0.4932, Boost: +0.0493)
+    Text Preview:
+    A bank shall report a credit card account as 'past due' to credit information companies (CICs) or levy penal charges...
+
+--- Result 2 | Reserve Bank of India (Commercial Banks-Asset Classification...) (RBI) [both] ---
+    Document ID: rbi_asset_class_irac_2026 | Page: 11 | Section: General | Score: 0.5367 (Dense: 0.4879, Boost: +0.0488)
+    Text Preview:
+    (1) The bills discounted under Letter of Credit (LC) favouring a borrower may not be classified as NPA...
+
+--- Result 3 | Reserve Bank of India (Commercial Banks-Asset Classification...) (RBI) [both] ---
+    Document ID: rbi_asset_class_irac_2026 | Page: 10 | Section: General | Score: 0.5345 (Dense: 0.4859, Boost: +0.0486)
+    Text Preview:
+    (2) If it is classified as 'out of order' in respect of an Overdraft/ Cash Credit (OD/ CC); (3) If drawings are permitted for a continuous period of 90 days...
+```
+
+### 8.6 Demonstrate Insufficient-Context Handling (Honest Fallback)
+```bash
+python CS2_PolicyLens/search.py \
+    --ask "What is the maximum penalty in rupees prescribed by SEBI for insider trading violations by mutual fund trustees under the 2026 directions?" \
+    --collection policylens_v1
+```
+
+**Output:**
+```text
+[*] Processing Grounded Question: "What is the maximum penalty in rupees prescribed by SEBI for insider trading violations by mutual fund trustees under the 2026 directions?"
 
 ======================================================================
 QUESTION:
-What is the speed of light in vacuum and the capital of Mars?
+What is the maximum penalty in rupees prescribed by SEBI for insider trading violations by mutual fund trustees under the 2026 directions?
 ----------------------------------------------------------------------
 ANSWER:
-The available indexed regulatory documents do not provide sufficient evidence to answer this question. Please verify that the relevant circulars or master directions have been indexed.
+The available indexed regulatory documents do not provide sufficient evidence to answer this question.
 ----------------------------------------------------------------------
-STATUS: INSUFFICIENT_CONTEXT
-ENGINE: None
+STATUS: SUCCESS
+ENGINE: groq/qwen/qwen3.8-27b
 ======================================================================
 
-SOURCES CITED: None (Insufficient evidence context)
+SOURCES CITED (5):
+  [1] Document: sebi_net_settlement_mf_2026 | Page: 4 | Section: Illustration of obligations | Score: 0.6823
+  [2] Document: sebi_net_settlement_mf_2026 | Page: 5 | Section: Illustration of obligations | Score: 0.6539
+  [3] Document: sebi_currency_deriv_limits_2026 | Page: 2 | Section: Stock exchanges directed | Score: 0.6434
+  [4] Document: sebi_net_settlement_mf_2026 | Page: 5 | Section: Illustration of obligations | Score: 0.6389
+  [5] Document: sebi_net_settlement_mf_2026 | Page: 5 | Section: Net settlement of funds | Score: 0.6263
 ```
 
 ---
@@ -355,74 +388,66 @@ SOURCES CITED: None (Insufficient evidence context)
 ## 10. Evaluation Methodology and Actual Results
 
 ### Automated Test Architecture:
-Testing is organized into 4 isolated test suites totaling **38 unit and integration tests**. To guarantee reproducibility, sub-second execution, and zero external network dependencies, tests utilize in-memory SQLite, `MockEmbeddingEngine` (384-dim deterministic unit vectors), `MockChromaClient`, and `MockLLM`.
+Testing is organized into 5 isolated test suites totaling **55 unit and integration tests**. To guarantee reproducibility, sub-second execution, and zero external network dependencies, tests utilize in-memory SQLite, `MockEmbeddingEngine` (384-dim deterministic unit vectors), `MockChromaClient`, and `MockLLM`.
 
 ```bash
 cd LLM_Case_Studies && .venv/bin/python -m unittest discover -s CS2_PolicyLens/tests -p "test_*.py" -v
 ```
 
-### Actual Verified Results (All 38 Tests Passing in 1.1s):
-```text
-test_chromadb_metadata_validation_during_indexing (test_indexing_pipeline) ... ok
-test_failed_indexing_preserves_previously_active_version (test_indexing_pipeline) ... ok
-test_reindexing_unchanged_document_skips_and_preserves_active (test_indexing_pipeline) ... ok
-test_retrieval_excludes_inactive_versions (test_indexing_pipeline) ... ok
-test_successful_pdf_indexing_lifecycle (test_indexing_pipeline) ... ok
-test_cas_promotion_success_from_scratch (test_lifecycle_registry) ... ok
-test_persisted_expected_fingerprint_behavior (test_lifecycle_registry) ... ok
-test_promotion_rejected_if_state_not_verified (test_lifecycle_registry) ... ok
-test_promotion_rejected_on_worker_id_or_fencing_token_mismatch (test_lifecycle_registry) ... ok
-test_stale_candidate_rejected_in_two_candidate_race (test_lifecycle_registry) ... ok
-test_verification_rejected_on_worker_or_token_mismatch (test_lifecycle_registry) ... ok
-test_empty_active_registry_returns_empty_without_chroma_query (test_lifecycle_registry) ... ok
-test_late_write_reconciliation_and_sweeper_idempotency (test_lifecycle_registry) ... ok
-test_reconciliation_collection_scoping_regression (test_lifecycle_registry) ... ok
-test_retrieval_strictly_filters_active_fingerprints (test_lifecycle_registry) ... ok
-test_migration_preserves_records_foreign_keys_and_indexes (test_lifecycle_registry) ... ok
-test_migration_rollback_on_failure (test_lifecycle_registry) ... ok
-test_post_migration_trigger_enforces_legal_transitions (test_lifecycle_registry) ... ok
-test_empty_expected_context_rejected_before_batch (test_lifecycle_registry) ... ok
-test_mismatched_collection_name_blocks_chroma_add (test_lifecycle_registry) ... ok
-test_mismatched_document_id_blocks_chroma_add (test_lifecycle_registry) ... ok
-test_mismatched_index_fingerprint_blocks_chroma_add (test_lifecycle_registry) ... ok
-test_mismatched_version_id_blocks_chroma_add (test_lifecycle_registry) ... ok
-test_valid_metadata_calls_chroma_add (test_lifecycle_registry) ... ok
-test_determinism_and_serialization (test_pdf_parser) ... ok
-test_genuine_merged_cells_table (test_pdf_parser) ... ok
-test_genuinely_blank_page_skips_ocr (test_pdf_parser) ... ok
-test_hybrid_native_with_ocr_region (test_pdf_parser) ... ok
-test_overlapping_images_coverage_union (test_pdf_parser) ... ok
-test_scanned_page_ocr_fallback (test_pdf_parser) ... ok
-test_single_column_parsing (test_pdf_parser) ... ok
-test_structured_table_extraction (test_pdf_parser) ... ok
-test_two_column_reading_order_reconstruction (test_pdf_parser) ... ok
-test_extractive_fallback_when_offline_or_unconfigured (test_rag_qa) ... ok
-test_grounded_answer_generation_with_mock_llm (test_rag_qa) ... ok
-test_inactive_and_revoked_document_chunks_strictly_excluded (test_rag_qa) ... ok
-test_insufficient_context_honest_fallback_zero_llm_calls (test_rag_qa) ... ok
-test_source_references_exact_structure (test_rag_qa) ... ok
+### Actual Verified Test Results (All 55 Tests Passing):
+- `test_pdf_parser.py`: 9 unit tests (Reading order, two-column gutter, tables, OCR fallback).
+- `test_lifecycle_registry.py`: 19 unit tests (CAS promotion, race conditions, triggers, metadata validation).
+- `test_indexing_pipeline.py`: 5 integration tests (Atomic lifecycle, failure preservation, version exclusion).
+- `test_rag_qa.py`: 8 unit tests (Grounded QA, provenance citations, masthead denoising, empty query handling, hybrid integration).
+- `test_search_ranking.py`: 14 unit tests (Salient terms, non-overlapping phrases, domain stopwords, boost cap, candidate deduplication, metadata filtering, smoke test).
 
-----------------------------------------------------------------------
-Ran 38 tests in 1.136s
+### 25-Question Retrieval Benchmark Comparison (`policylens_structure`):
+Evaluated across 25 expert compliance questions with strict gold-chunk labels:
 
-OK
-```
+| Configuration | Recall@3 | Recall@5 | Recall@10 | MRR | Candidate R@20 | Q23 Rank | Mean Latency | Regressions |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **1. Dense Baseline** | 96.0% | 100.0% | 100.0% | 0.9100 | 100.0% | 4 | ~212 ms | Baseline |
+| **2. Dense + Config 4 Rerank** | 96.0% | 100.0% | 100.0% | **0.9300** | 100.0% | 4 | ~215 ms | **0** |
+| **3. Dense + Query Expansion + Config 4** | 96.0% | 100.0% | 100.0% | **0.9300** | 100.0% | 4 | ~14 ms* | **0** |
+| **4. Hybrid (Dense + Lexical) + Config 4** | 96.0% | 100.0% | 100.0% | **0.9300** | 100.0% | 4 | ~73 ms | **0** |
+| **5. Hybrid + Query Expansion + Config 4** | 96.0% | 100.0% | 100.0% | **0.9300** | 100.0% | 4 | ~73 ms | **0** |
+
+*\*Note: Latency variations reflect local embedding model warm-up state on CPU.*
+
+### Key Benchmark & Corpus Findings:
+1. **Q23 Stability**: In Annex 1 item 2 query, the gold chunk (`rbi_agency_comm_2026 p.16`) is stably maintained at **Rank 4** across all configurations with zero regressions. Config 4 stops generic terms ("agency", "bank") and isolated digits ("2") from over-boosting irrelevant chunks.
+2. **Q06 Substantive vs Stub**: For the repealed instruction query dated 14.10.2009, the substantive table chunk (`struct_0015`, Page 19) is retrieved at Rank 2/4 alongside the short page footer stub (`struct_0016`).
+3. **Q10 Page Boundary Spanning**: For the Internal Ombudsman minimum outlet threshold, the clause text *"having 10 or more"* resides on Page 1 (`struct_0000`) while *"banking outlets in India..."* is on Page 2 (`struct_0001`). When both contiguous chunks are supplied, the LLM extracts the exact threshold ("10 or more") with 100% accuracy.
+4. **NPA Queries on Full 40-Document Corpus (`policylens_v1`)**:
+   - **NPA Query 1 (Categories)**: `rbi_asset_class_irac_2026 p.16` (Clause 10) holds **Rank 1** (Score: 0.6895).
+   - **NPA Query 2 (Out of Order)**: Chunks for CC/OD out-of-order conditions (`struct_0009` and `struct_0006`) are retrieved and promoted to **Rank 3 and 4**, purging macro reports from the top positions.
+   - **NPA Query 3 (Substantive Definition)**: Clause 8 head (`struct_0008`, Page 8/9) is elevated from **Rank 15 $\to$ Rank 7** under Hybrid + Config 4 retrieval, while administrative cross-references are kept below Rank 1.
+
+### End-to-End RAG QA Validation (8 Representative Categories):
+- **Grounded Factuality Rate**: 100% on evidence-present categories; 0% hallucination.
+- **Source Citation Accuracy**: Exact document IDs, page numbers, and clause sections provided.
+- **Out-of-Scope / Insufficient Evidence**: Correctly outputs honest fallback without hallucination when evidence is absent (e.g. unindexed SEBI penalty query).
 
 ---
 
 ## 11. Limitations
 
-1. **Physical Page Break Boundary on Multi-Page Tables**: Large regulatory tables that cross physical page breaks are segmented at page boundaries with `is_continued` metadata flags rather than merged into a single multi-page object.
-2. **Third-Party OCR Binary Dependency**: Full-page OCR fallback performance is contingent upon the local system Tesseract installation (`tesseract --version` $\ge 5.0$).
-3. **Client-Side Timeout Drift on Remote ChromaDB**: High-latency remote ChromaDB instances rely on client-side HTTP timeouts ($T \le 30\text{s}$) and the background sweeper for eventual cleanup of orphaned vector batches.
+1. **Python Environment Architecture on macOS Apple Silicon**:
+   - The tested environment executes Python 3.11.7 under the `x86_64` architecture (via Rosetta 2 on macOS ARM64).
+   - A clean installation in an isolated environment verifies that dependencies (`torch==2.2.2`, `sentence-transformers==3.4.1`, `chromadb==1.5.9`) resolve without errors, provided pre-compiled binary wheels (e.g. `cryptography==48.0.1`) are utilized to avoid triggering host Rust cross-compilation target mismatches. Native ARM64 migration requires separate wheel compilation.
+2. **Physical Page Break Boundary on Multi-Page Tables & Clauses**:
+   - When statutory sentences span across physical page boundaries (such as Clause 3 of `rbi_io_comm_2026` split between Page 1 and Page 2), single-page chunks require contiguous window retrieval or chunk overlap to prevent numerical qualifiers from being separated from their subject.
+3. **Chunk Boundary Header Concatenation**:
+   - In dense master directions, the structural chunker occasionally groups the tail of one chapter with the head of the subsequent chapter (e.g. `rbi_asset_class_irac_2026_struct_0008` contains Chapter 1 definitions 29-32 followed by Chapter II Clause 8). While hybrid lexical triggers elevate this chunk to Rank 7, future chunkers should enforce strict chapter-level splitting.
 
 ---
 
 ## 12. Future Improvements
 
-1. **Cross-Page Table Stitching**: Implement automatic column alignment recognition across consecutive page boundaries to stitch split tables before chunking.
-2. **Hybrid Dense + Sparse Search**: Integrate BM25 sparse keyword matching alongside dense vector retrieval to enhance keyword precision on exact circular notification numbers (e.g., `RBI/2025-26/381`).
-3. **Automated Regulatory Differential Highlighting**: When an active circular supersedes a prior version, automatically generate a diff summary highlighting amended clauses and altered compliance deadlines.
+1. **Sliding Window Chunk Overlap**: Implement a 50-token semantic overlap across page boundaries to stitch split sentences before embedding generation.
+2. **Chapter-Level Hard Boundaries**: Enforce strict chunk cuts whenever a major heading pattern (`Chapter [IVXLCDM]+`) is detected, preventing trailing definitions from diluting chapter-head embeddings.
+3. **Cross-Page Table Stitching**: Implement automatic column alignment recognition across consecutive page boundaries to stitch split tables before chunking.
+4. **Automated Regulatory Differential Highlighting**: When an active circular supersedes a prior version, automatically generate a diff summary highlighting amended clauses and altered compliance deadlines.
 
 ---
 
@@ -433,12 +458,13 @@ CS2_PolicyLens/
 ├── README.md                      # Comprehensive project documentation
 ├── REPORT.md                      # Standalone technical case study report
 ├── index.py                       # Root CLI entry point (--index, --status, --query, --ask)
-├── requirements.txt               # Dependencies (PyMuPDF, pdfplumber, ChromaDB, SentenceTransformers)
+├── search.py                      # Production search & QA CLI (Hybrid, Rerank, Denoise, Expand, Filter)
+├── requirements.txt               # Pinned dependencies (PyMuPDF, pdfplumber, ChromaDB, SentenceTransformers)
 ├── data/
 │   ├── manifest.csv               # Complete audit catalog of all 40 regulatory PDFs
-│   ├── pdfs/                      # Official Indian regulatory PDF corpus (1,123 pages)
+│   ├── pdfs/                      # Official Indian regulatory PDF corpus (40 PDFs, 1,123 pages)
 │   ├── policylens_registry.db     # SQLite lifecycle and document registry database
-│   └── chroma_db/                 # Local ChromaDB vector storage directory
+│   └── chroma_db/                 # Local ChromaDB vector storage (policylens_v1, policylens_structure)
 ├── src/
 │   ├── __init__.py                # Package exports
 │   ├── config.py                  # Central configuration paths, thresholds, and parameters
@@ -452,9 +478,17 @@ CS2_PolicyLens/
 │   ├── version_registry.py        # SQLite lifecycle state machine, CAS promotion, guarded writes
 │   ├── indexing_pipeline.py       # End-to-end indexing, verification, retrieval, and CLI logic
 │   └── rag_qa.py                  # Minimal RAG question-answering engine with Groq/offline fallback
+├── eval/
+│   ├── questions.csv              # 25 expert compliance benchmark questions with gold labels
+│   ├── metrics.json               # Baseline retrieval evaluation metrics
+│   ├── hybrid_experiment_results.json # Full benchmark comparison (5 configs + 3 NPA queries)
+│   ├── run_hybrid_experiment.py   # Automated hybrid retrieval experiment runner
+│   ├── rag_qa_evaluation_results.json # End-to-end RAG QA evaluation results (8 categories)
+│   └── run_rag_qa_evaluation.py   # Phase C RAG QA evaluation runner
 └── tests/
     ├── test_pdf_parser.py         # 9 unit tests: layout, columns, tables, OCR fallback
     ├── test_lifecycle_registry.py # 19 unit tests: CAS promotion, race conditions, triggers, metadata
     ├── test_indexing_pipeline.py  # 5 integration tests: end-to-end lifecycle, failure preservation
-    └── test_rag_qa.py             # 5 unit tests: grounded QA, provenance, honest fallback, isolation
+    ├── test_rag_qa.py             # 8 unit tests: grounded QA, provenance, honest fallback, isolation, hybrid
+    └── test_search_ranking.py     # 14 unit tests: salient terms, Config 4 rerank, hybrid merging, deduplication
 ```

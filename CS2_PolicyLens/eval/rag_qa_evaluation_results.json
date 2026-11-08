@@ -1,0 +1,431 @@
+{
+  "timestamp": "2026-11-07T17:41:55Z",
+  "total_questions": 8,
+  "grounded_count": 5,
+  "citation_ok_count": 7,
+  "results": [
+    {
+      "category": "1. Straightforward Regulatory Fact",
+      "question": "In Annex 1 of the agency bank master direction, which agency bank is listed under serial number 2?",
+      "collection": "policylens_structure",
+      "latency_seconds": 5.682,
+      "status": "success",
+      "llm_used": "groq/qwen/qwen3.8-27b",
+      "answer": "Based on the provided regulatory context, specifically **Source 4** (Document: `rbi_agency_comm_2026`, Page 16, Section: \"List of ABs appointed to carry out Government banking business\"), the agency bank listed under serial number 2 is **Bandhan Bank Ltd.**\n\n**Citation:**\n*   **Source Document:** `rbi_agency_comm_2026`\n*   **Page:** 16\n*   **Table Entry:** S. No. 2 | Agency Bank: Bandhan Bank Ltd.",
+      "sources_count": 5,
+      "sources": [
+        {
+          "source_index": 1,
+          "document_id": "rbi_agency_comm_2026",
+          "page_number": 28,
+          "section_heading": "Agency Banks and Corresponding RBI Regional Offices",
+          "retrieval_score": 0.6148
+        },
+        {
+          "source_index": 2,
+          "document_id": "rbi_agency_comm_2026",
+          "page_number": 35,
+          "section_heading": "hereby repealed",
+          "retrieval_score": 0.6094
+        },
+        {
+          "source_index": 3,
+          "document_id": "rbi_agency_comm_2026",
+          "page_number": 2,
+          "section_heading": "(SFBs) appointed by RBI under Section 45 of the RBI, Act, 1934, by mutual",
+          "retrieval_score": 0.5845
+        },
+        {
+          "source_index": 4,
+          "document_id": "rbi_agency_comm_2026",
+          "page_number": 16,
+          "section_heading": "List of ABs appointed to carry out Government banking business",
+          "retrieval_score": 0.5808
+        },
+        {
+          "source_index": 5,
+          "document_id": "rbi_agency_comm_2026",
+          "page_number": 29,
+          "section_heading": "Agency Banks and Corresponding RBI Regional Offices",
+          "retrieval_score": 0.5640000000000001
+        }
+      ],
+      "evaluation": {
+        "factually_grounded": false,
+        "citation_correct": true,
+        "admitted_insufficient": null
+      }
+    },
+    {
+      "category": "2. Definition (IRAC Clause 6(17))",
+      "question": "Under IRAC directions, what is the definition of an out of order overdraft or cash credit account?",
+      "collection": "policylens_v1",
+      "latency_seconds": 3.987,
+      "status": "success",
+      "llm_used": "groq/qwen/qwen3.8-27b",
+      "answer": "Under the IRAC directions, an Overdraft (OD) or Cash Credit (CC) account is classified as **\u2018out of order\u2019** if any of the following conditions are satisfied:\n\n1.  The outstanding balance remains continuously in excess of the sanctioned limit/drawing power for **ninety days**;\n2.  There are **no credits** continuously for **ninety days**; or\n3.  Credits are **not enough to cover the interest debited** during the previous ninety days period.\n\n**Source:** [Source 1 | Document: rbi_asset_class_irac_2026 | Page 7]\n\n**Additional Context:**\n*   The definition of \u201cout of order\u201d applies to all funded loan products which are not in the nature of a term loan, **except credit cards**. [Source 1 | Page 7]\n*   The \u201cprevious ninety days period\u201d for condition (iii) is inclusive of the day for which the day-end process is being run. [Source 1 | Page 7]\n*   An account is also considered for NPA classification if it is classified as \u2018out of order\u2019 in respect of an OD/CC. [Source 2 | Page 10]",
+      "sources_count": 5,
+      "sources": [
+        {
+          "source_index": 1,
+          "document_id": "rbi_asset_class_irac_2026",
+          "page_number": 7,
+          "section_heading": "to evaluate the performance of the financial asset vis-\u00e0-vis the sanction terms to",
+          "retrieval_score": 0.76065
+        },
+        {
+          "source_index": 2,
+          "document_id": "rbi_asset_class_irac_2026",
+          "page_number": 10,
+          "section_heading": "(8) If interest / instalment (including maturity proceeds) from debt instruments such",
+          "retrieval_score": 0.6391
+        },
+        {
+          "source_index": 3,
+          "document_id": "rbi_asset_class_irac_2026",
+          "page_number": 8,
+          "section_heading": "(ii) Once disbursed, the sanctioned limit cannot be restored/ replenished",
+          "retrieval_score": 0.53867
+        },
+        {
+          "source_index": 4,
+          "document_id": "rbi_asset_class_irac_2026",
+          "page_number": 4,
+          "section_heading": "(iii) Lender Concessions: The lender grants concessions - such as reduction in",
+          "retrieval_score": 0.51788
+        },
+        {
+          "source_index": 5,
+          "document_id": "rbi_asset_class_irac_2026",
+          "page_number": 17,
+          "section_heading": "Annex 3 of these Directions contains requirements relating to automation of Asset",
+          "retrieval_score": 0.498
+        }
+      ],
+      "evaluation": {
+        "factually_grounded": true,
+        "citation_correct": true,
+        "admitted_insufficient": null
+      }
+    },
+    {
+      "category": "3. Multi-condition Regulatory Clause (IRAC Clause 10)",
+      "question": "What are the asset classification norms for substandard, doubtful, and loss assets under IRAC directions?",
+      "collection": "policylens_v1",
+      "latency_seconds": 4.11,
+      "status": "success",
+      "llm_used": "groq/qwen/qwen3.8-27b",
+      "answer": "Based on the provided regulatory context, the specific definitions for **Substandard** and **Doubtful** assets are partially or fully described, while the definition for **Loss** assets is explicitly provided. However, the context does not contain the full definition for \"Substandard\" assets, only referencing them in the context of \"Doubtful\" assets.\n\nHere are the asset classification norms strictly grounded in the provided text:\n\n**1. Doubtful Asset**\n*   **Definition:** A doubtful asset has all the weaknesses inherent in assets that were classified as substandard, with the added characteristic that the weaknesses make collection or liquidation in full \u2013 on the basis of currently known facts, conditions and values \u2013 highly questionable and improbable.\n*   **Source:** [Source 1 | Document: rbi_asset_class_irac_2026 | Page 16]\n\n**2. Loss Asset**\n*   **Definition:** An asset where loss has been identified by a bank or internal or external auditors or the inspection conducted by the Reserve Bank of India, but the amount has not been written off wholly by the bank.\n*   **Characteristics:** A loss asset is considered uncollectible and of such little value that its continuance as a financial asset is not warranted, although there may be some salvage or recovery value.\n*   **Source:** [Source 1 | Document: rbi_asset_class_irac_2026 | Page 16]\n\n**3. Substandard Asset**\n*   **Contextual Reference:** The provided text states that a \"doubtful asset has all the weaknesses inherent in assets that were classified as substandard.\" However, the specific standalone definition or criteria for classifying an asset as \"Substandard\" is **not provided** in the available indexed regulatory documents.\n*   **Source:** [Source 1 | Document: rbi_asset_class_irac_2026 | Page 16]\n\n**Note:** The available indexed regulatory documents do not provide sufficient evidence to answer the question regarding the specific standalone definition or criteria for **Substandard** assets, as only their relationship to \"Doubtful\" assets is mentioned.",
+      "sources_count": 5,
+      "sources": [
+        {
+          "source_index": 1,
+          "document_id": "rbi_asset_class_irac_2026",
+          "page_number": 16,
+          "section_heading": "provides for, inter alia, exact due dates for repayment of loan, breakup between",
+          "retrieval_score": 0.7299599999999999
+        },
+        {
+          "source_index": 2,
+          "document_id": "rbi_asset_class_irac_2026",
+          "page_number": 36,
+          "section_heading": "(4) The product-wise and stage-wise prudential floors for below \u201cloan product",
+          "retrieval_score": 0.5384
+        },
+        {
+          "source_index": 3,
+          "document_id": "rbi_asset_class_irac_2026",
+          "page_number": 38,
+          "section_heading": "(xv) are as below:",
+          "retrieval_score": 0.5331
+        },
+        {
+          "source_index": 4,
+          "document_id": "rbi_asset_class_irac_2026",
+          "page_number": 18,
+          "section_heading": "B. Fair Valuation on Transition",
+          "retrieval_score": 0.52261
+        },
+        {
+          "source_index": 5,
+          "document_id": "rbi_asset_class_irac_2026",
+          "page_number": 20,
+          "section_heading": "(1) Stage 1: A financial instrument shall be classified under Stage 1, where it has",
+          "retrieval_score": 0.5202
+        }
+      ],
+      "evaluation": {
+        "factually_grounded": true,
+        "citation_correct": true,
+        "admitted_insufficient": null
+      }
+    },
+    {
+      "category": "4. Table / Structured Provision",
+      "question": "What is the circular reference number of the repealed instruction dated 14.10.2009 for pension withdrawal facilities through public sector banks?",
+      "collection": "policylens_structure",
+      "latency_seconds": 3.253,
+      "status": "success",
+      "llm_used": "groq/qwen/qwen3.8-27b",
+      "answer": "Based on the provided regulatory context, the circular reference number for the instruction dated **14.10.2009** regarding the scheme for payment of pension (including facilities for withdrawal by old/sick/disabled/incapacitated pensioners) is **Ref.DGBA.GAD.No.H 3194/45.01.001/2009-10**.\n\n**Source:**\n*   **Document:** rbi_pension_2026\n*   **Page:** 19\n*   **Section:** List of circulars repealed by the Master Direction (Table)\n*   **Row:** S.No. 9",
+      "sources_count": 5,
+      "sources": [
+        {
+          "source_index": 1,
+          "document_id": "rbi_pension_2026",
+          "page_number": 20,
+          "section_heading": "List of circulars repealed by the Master Direction",
+          "retrieval_score": 0.7604000000000001
+        },
+        {
+          "source_index": 2,
+          "document_id": "rbi_pension_2026",
+          "page_number": 19,
+          "section_heading": "List of circulars repealed by the Master Direction",
+          "retrieval_score": 0.7558
+        },
+        {
+          "source_index": 3,
+          "document_id": "rbi_pension_2026",
+          "page_number": 18,
+          "section_heading": "List of circulars repealed by the Master Direction",
+          "retrieval_score": 0.7505000000000001
+        },
+        {
+          "source_index": 4,
+          "document_id": "rbi_pension_2026",
+          "page_number": 19,
+          "section_heading": "List of circulars repealed by the Master Direction",
+          "retrieval_score": 0.74404
+        },
+        {
+          "source_index": 5,
+          "document_id": "rbi_pension_2026",
+          "page_number": 18,
+          "section_heading": "List of circulars repealed by the Master Direction",
+          "retrieval_score": 0.70334
+        }
+      ],
+      "evaluation": {
+        "factually_grounded": true,
+        "citation_correct": true,
+        "admitted_insufficient": null
+      }
+    },
+    {
+      "category": "5. Multi-chunk Regulatory Criteria (IRAC Clause 8)",
+      "question": "What are the specific conditions under Clause 8 of IRAC directions under which a financial asset is classified as an NPA?",
+      "collection": "policylens_v1",
+      "latency_seconds": 17.678,
+      "status": "success",
+      "llm_used": "groq/qwen/qwen3.8-27b",
+      "answer": "The available indexed regulatory documents do not provide sufficient evidence to answer this question.\n\n**Reasoning:**\nThe provided context contains excerpts from the document `rbi_asset_class_irac_2026` (specifically pages 11, 16, 17, 45, 67, and 80). While these excerpts discuss NPA classification in specific contexts (e.g., Co-Lending Arrangements on Page 11, System Generated NPAs on Page 67, and day-end processing on Page 17), **none of the provided sources contain the text of \"Clause 8\"** or the general definition/conditions for NPA classification typically found in the early paragraphs of such directions (often defining NPA as an asset where interest/principal is overdue for 90 days). The specific conditions under \"Clause 8\" are not present in the supplied text.",
+      "sources_count": 6,
+      "sources": [
+        {
+          "source_index": 1,
+          "document_id": "rbi_asset_class_irac_2026",
+          "page_number": 45,
+          "section_heading": "104. Upon satisfactory rectification of the factors that led to the NPA classification,",
+          "retrieval_score": 0.7128
+        },
+        {
+          "source_index": 2,
+          "document_id": "rbi_asset_class_irac_2026",
+          "page_number": 11,
+          "section_heading": "(3) Co-Lending Arrangements (CLA): Regulated Entities (REs) shall apply a",
+          "retrieval_score": 0.6601
+        },
+        {
+          "source_index": 3,
+          "document_id": "rbi_asset_class_irac_2026",
+          "page_number": 16,
+          "section_heading": "provides for, inter alia, exact due dates for repayment of loan, breakup between",
+          "retrieval_score": 0.6523
+        },
+        {
+          "source_index": 4,
+          "document_id": "rbi_asset_class_irac_2026",
+          "page_number": 67,
+          "section_heading": "Total",
+          "retrieval_score": 0.6493
+        },
+        {
+          "source_index": 5,
+          "document_id": "rbi_asset_class_irac_2026",
+          "page_number": 17,
+          "section_heading": "Annex 3 of these Directions contains requirements relating to automation of Asset",
+          "retrieval_score": 0.6404000000000001
+        },
+        {
+          "source_index": 6,
+          "document_id": "rbi_asset_class_irac_2026",
+          "page_number": 80,
+          "section_heading": "Part B - Supplementary Details",
+          "retrieval_score": 0.6393
+        }
+      ],
+      "evaluation": {
+        "factually_grounded": false,
+        "citation_correct": false,
+        "admitted_insufficient": null
+      }
+    },
+    {
+      "category": "6. Particular Issuer Criteria (RBI Internal Ombudsman)",
+      "question": "What are the governance standards and fit and proper criteria specified by RBI for appointment of an Internal Ombudsman in commercial banks?",
+      "collection": "policylens_structure",
+      "latency_seconds": 22.058,
+      "status": "success",
+      "llm_used": "groq/qwen/qwen3.8-27b",
+      "answer": "Based on the provided regulatory context from **rbi_io_comm_2026**, the governance standards and fit and proper criteria for the appointment of an Internal Ombudsman (IO) in commercial banks are as follows:\n\n**1. Rank and Experience Requirements**\n*   **Rank:** The IO must be a retired or serving officer holding a rank equivalent to a **General Manager** in the Regulated Entity (RE) or a Financial Sector Regulatory Body.\n    *   *Source: rbi_io_comm_2026, Page 3, Section 5(1)*\n*   **Experience:** The candidate must possess necessary skills and a minimum of **seven years** of working experience in areas such as banking, non-banking finance, regulation, supervision, payment and settlement systems, credit information, or consumer protection.\n    *   *Source: rbi_io_comm_2026, Page 3, Section 5(1)*\n\n**2. Employment Status and Independence**\n*   **Serving Officers:** If the appointee is a serving officer, they are required to **relinquish their current position** before assuming charge as the IO.\n    *   *Source: rbi_io_comm_2026, Page 3, Section 5(1)*\n*   **No Conflict of Interest:** The IO shall **not** have been previously employed, nor presently be employed, by the bank or any holding, associate, or subsidiary company of the bank.\n    *   *Source: rbi_io_comm_2026, Page 3, Section 5(2)*\n\n**3. Age Limit**\n*   The IO shall **not be over 70 years of age** before the completion of their tenure.\n    *   *Source: rbi_io_comm_2026, Page 3, Section 5(3)*\n\n**4. Multiple Appointments**\n*   A person may work as the IO in **more than one Regulated Entity (RE) simultaneously**, subject to the discretion of the concerned REs and the approval of the Board or Customer Service Committee / Consumer Protection Committee of the Board of the appointing RE.\n    *   *Source: rbi_io_comm_2026, Page 3, Section 5(4)*\n\n**5. Appointment Authority and Reporting**\n*   **Appointment:** The appointment is contractual. The bank must ensure the post does not remain vacant.\n    *   *Source: rbi_io_comm_2026, Page 4, Section 8(1)*\n*   **Intimation to RBI:** The bank must furnish details of the appointed IO to the Consumer Education and Protection Department, Central Office, Reserve Bank of India, within **five working days** of appointment.\n    *   *Source: rbi_io_comm",
+      "sources_count": 5,
+      "sources": [
+        {
+          "source_index": 1,
+          "document_id": "rbi_io_comm_2026",
+          "page_number": 3,
+          "section_heading": "6. Appointment of Deputy Internal Ombudsman",
+          "retrieval_score": 0.7739
+        },
+        {
+          "source_index": 2,
+          "document_id": "rbi_io_comm_2026",
+          "page_number": 3,
+          "section_heading": "(2)  All other expressions, unless defined herein, shall have the same meaning as",
+          "retrieval_score": 0.77044
+        },
+        {
+          "source_index": 3,
+          "document_id": "rbi_io_comm_2026",
+          "page_number": 13,
+          "section_heading": "(2)\nAll appointments / actions under the aforesaid Master Direction, prior to the",
+          "retrieval_score": 0.747
+        },
+        {
+          "source_index": 4,
+          "document_id": "rbi_io_comm_2026",
+          "page_number": 4,
+          "section_heading": "8. Tenure of Internal Ombudsman / Deputy Internal Ombudsman",
+          "retrieval_score": 0.7210000000000001
+        },
+        {
+          "source_index": 5,
+          "document_id": "rbi_io_comm_2026",
+          "page_number": 14,
+          "section_heading": "IO\nDy. IO",
+          "retrieval_score": 0.7196
+        }
+      ],
+      "evaluation": {
+        "factually_grounded": true,
+        "citation_correct": true,
+        "admitted_insufficient": null
+      }
+    },
+    {
+      "category": "7. Insufficient Evidence / Out of Scope",
+      "question": "What is the maximum penalty in rupees prescribed by SEBI for insider trading violations by mutual fund trustees under the 2026 directions?",
+      "collection": "policylens_v1",
+      "latency_seconds": 10.145,
+      "status": "success",
+      "llm_used": "groq/qwen/qwen3.8-27b",
+      "answer": "The available indexed regulatory documents do not provide sufficient evidence to answer this question.",
+      "sources_count": 5,
+      "sources": [
+        {
+          "source_index": 1,
+          "document_id": "sebi_net_settlement_mf_2026",
+          "page_number": 4,
+          "section_heading": "Illustration of obligations of mutual fund scheme under current practice and under\nnet settlement framework",
+          "retrieval_score": 0.6823
+        },
+        {
+          "source_index": 2,
+          "document_id": "sebi_net_settlement_mf_2026",
+          "page_number": 5,
+          "section_heading": "Illustration of obligations of mutual fund scheme under current practice and under\nnet settlement framework",
+          "retrieval_score": 0.6539
+        },
+        {
+          "source_index": 3,
+          "document_id": "sebi_currency_deriv_limits_2026",
+          "page_number": 2,
+          "section_heading": "5. Stock exchanges and clearing corporations are directed to:",
+          "retrieval_score": 0.6434000000000001
+        },
+        {
+          "source_index": 4,
+          "document_id": "sebi_net_settlement_mf_2026",
+          "page_number": 5,
+          "section_heading": "Illustration of obligations of mutual fund scheme under current practice and under\nnet settlement framework",
+          "retrieval_score": 0.6389
+        },
+        {
+          "source_index": 5,
+          "document_id": "sebi_net_settlement_mf_2026",
+          "page_number": 5,
+          "section_heading": "3. Net settlement of funds: Under the net settlement framework,",
+          "retrieval_score": 0.6263000000000001
+        }
+      ],
+      "evaluation": {
+        "factually_grounded": true,
+        "citation_correct": true,
+        "admitted_insufficient": true
+      }
+    },
+    {
+      "category": "8. Ambiguous Regulatory Query",
+      "question": "When does a credit facility become non-performing?",
+      "collection": "policylens_v1",
+      "latency_seconds": 24.415,
+      "status": "success",
+      "llm_used": "groq/qwen/qwen3.8-27b",
+      "answer": "The available indexed regulatory documents do not provide sufficient evidence to answer this question.\n\n**Note:** While Source 4 (rbi_asset_class_irac_2026, Page 8) defines \"Standard assets\" as exposures which are *not* classified as non-performing assets, it does not provide the specific criteria, timelines, or conditions under which a credit facility *becomes* non-performing. The provided context lacks the specific definition or threshold for Non-Performing Assets (NPA).",
+      "sources_count": 5,
+      "sources": [
+        {
+          "source_index": 1,
+          "document_id": "rbi_mpr_oct_2026",
+          "page_number": 34,
+          "section_heading": "Sectors/Sub-Sectors\nCAGR*\nPost-COVID",
+          "retrieval_score": 0.5524
+        },
+        {
+          "source_index": 2,
+          "document_id": "rbi_mpr_oct_2026",
+          "page_number": 35,
+          "section_heading": "(Percentage points)",
+          "retrieval_score": 0.5449
+        },
+        {
+          "source_index": 3,
+          "document_id": "rbi_credit_risk_std_2026",
+          "page_number": 44,
+          "section_heading": "Items",
+          "retrieval_score": 0.5203
+        },
+        {
+          "source_index": 4,
+          "document_id": "rbi_asset_class_irac_2026",
+          "page_number": 8,
+          "section_heading": "(ii) Once disbursed, the sanctioned limit cannot be restored/ replenished",
+          "retrieval_score": 0.49246999999999996
+        },
+        {
+          "source_index": 5,
+          "document_id": "rbi_credit_risk_std_2026",
+          "page_number": 49,
+          "section_heading": "Illustration: A scenario may be assumed, where a borrower has availed credit facilities",
+          "retrieval_score": 0.4851
+        }
+      ],
+      "evaluation": {
+        "factually_grounded": false,
+        "citation_correct": true,
+        "admitted_insufficient": null
+      }
+    }
+  ]
+}

@@ -617,6 +617,8 @@ def main() -> None:
             query=args.ask,
             collection_name=target_collection,
             top_k=args.top_k,
+            use_hybrid=args.hybrid,
+            use_rerank=args.rerank,
         )
 
         print("\n" + "=" * 70)

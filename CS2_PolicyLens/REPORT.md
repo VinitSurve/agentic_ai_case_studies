@@ -141,36 +141,76 @@ To prevent vector database poisoning, orphaned chunks, and race conditions, Poli
 
 ---
 
-## 7. Retrieval Evaluation: Structure-Aware vs Fixed-Window
+## 7. Retrieval Evaluation: Dense Baseline vs. Hybrid Candidate Generation & Config 4 Reranking
 
-We conducted a controlled evaluation comparing **Structure-Aware Chunking** against a **Fixed-Window Baseline (500 tokens, 50 overlap)** across 25 expert-audited compliance questions:
+We conducted a rigorous, multi-configuration evaluation across the 25 expert compliance benchmark questions on `policylens_structure`:
 
-| Evaluation Metric | Structure-Aware Chunking | Fixed-Window Baseline (500/50) | Performance Advantage |
-|---|:---:|:---:|:---:|
-| **Recall@3** | **96.0%** (24 / 25) | 92.0% (23 / 25) | **+4.0% Absolute Improvement** |
-| **Recall@5** | **100.0%** (25 / 25) | 100.0% (25 / 25) | Complete Parity |
-| **Recall@10** | **100.0%** (25 / 25) | 100.0% (25 / 25) | Complete Parity |
-| **Mean Reciprocal Rank (MRR)** | **0.9100** | 0.8333 | **+0.0767 (+9.2% Relative Gain)** |
+| Configuration | Recall@3 | Recall@5 | Recall@10 | MRR | Candidate R@20 | Q23 Rank | Mean Query Latency | Regressions |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **1. Dense Baseline** | 96.0% | 100.0% | 100.0% | 0.9100 | 100.0% | 4 | ~212 ms | Baseline |
+| **2. Dense + Config 4 Lexical Rerank** | 96.0% | 100.0% | 100.0% | **0.9300** | 100.0% | 4 | ~215 ms | **0** |
+| **3. Dense + Query Expansion + Config 4** | 96.0% | 100.0% | 100.0% | **0.9300** | 100.0% | 4 | ~14 ms* | **0** |
+| **4. Hybrid (Dense + Lexical) + Config 4** | 96.0% | 100.0% | 100.0% | **0.9300** | 100.0% | 4 | ~73 ms | **0** |
+| **5. Hybrid + Query Expansion + Config 4** | 96.0% | 100.0% | 100.0% | **0.9300** | 100.0% | 4 | ~73 ms | **0** |
 
-### Disagreement Analysis:
-- In `Q06` (repealed circular table lookup) and `Q10` (applicability clause), Structure-Aware chunking achieved **Rank 1 retrieval**, whereas Fixed-Window chunking degraded to **Rank 4** because window boundaries severed table headers and diluted legal clauses with unrelated text.
-- In `Q23` (accredited bank listing), Fixed-Window chunking achieved **Rank 2** vs **Rank 4** for Structure-Aware, as the large 500-token window captured 20 table rows in a single continuous block.
+*\*Note: Latency variations reflect local embedding model warm-up state on CPU hardware.*
+
+### Candidate Pool Mechanics:
+- **Candidate Recall**: 100.0% of gold chunks are retained across all candidate cutoffs ($R@20$, $R@50$, $R@100$).
+- **Deduplication Rate**: Hybrid generation retrieves an average of $25.2$ raw candidates via dense vector query and high-precision ChromaDB `$contains` lexical triggers, which are deduplicated by stable `chunk_id` down to $22.1$ unique candidates (an average of $3.1$ duplicates removed per query).
+
+### Key Per-Query Retrieval Investigations:
+1. **Q23 Stability (Annex 1 Serial #2)**:
+   - In earlier unconstrained lexical experiments, aggressive boosts over-promoted Page 22 (Annual Return format) due to isolated digits (`'2'`) and overlapping phrases (`"the agency bank"`), pushing the gold chunk (`rbi_agency_comm_2026 p.16`) from Rank 4 down to Rank 5.
+   - Under **Config 4** (domain stopwords excluded, isolated digits ignored, non-overlapping maximal phrase spans, and a dynamic 10% boost cap), Page 22 receives minimal boost and cannot displace Page 16. **Q23 remains strictly at Rank 4 across all configurations with zero regressions.**
+2. **Q06 (Repealed Instruction Dated 14.10.2009)**:
+   - Page 19 contains two indexed chunks: `struct_0015` (the 1,879-character substantive table containing `Ref.DGBA.GAD.No.H 3194/45.01.001/2009-10`) and `struct_0016` (a 75-character page number footer stub).
+   - In dense baseline, the short stub scored slightly higher due to section header title matching. Under Config 4, exact statutory date matching (`"14.10.2009"`) boosts the substantive table chunk, ranking both at Rank 2 and Rank 4 in top-5.
+3. **Q10 (Internal Ombudsman Banking Outlets Threshold)**:
+   - The statutory applicability sentence spans across physical pages: Page 1 (`struct_0000`) concludes with *"having 10 or more"* and Page 2 (`struct_0001`) begins with *"banking outlets in India as on March 31, 2025"*.
+   - In dense baseline, Page 2 ranked at Rank 4 (Score: 0.4955) behind tenure/appointment chunks on Pages 3-4 (Scores: 0.51–0.54) due to high dense keyword density for "Internal Ombudsman". Config 4 preserves Page 2 at Rank 4, while contiguous multi-chunk context ensures the full sentence is visible to the RAG generator.
+4. **Full 40-Document Corpus NPA Queries (`policylens_v1`)**:
+   - **NPA Query 1 (Categories)**: `rbi_asset_class_irac_2026 p.16` (`struct_0017`, Clause 10 Substandard, Doubtful, Loss) holds **Rank 1** (Score: 0.6895).
+   - **NPA Query 2 (Out of Order)**: Pure dense baseline ranked unrelated capital charge and macroeconomic review chunks at Rank 1 and 2. Hybrid retrieval + Config 4 purges them, promoting `rbi_asset_class_irac_2026` chunks to all Top 4 positions, including CC/OD out-of-order conditions (`struct_0009` at **Rank 3** and `struct_0006` at **Rank 4**).
+   - **NPA Query 3 (Substantive Definition)**: The substantive Chapter II Clause 8 definition (`struct_0008`, Page 8/9) jumped from **Rank 15 $\to$ Rank 7** under Hybrid + Config 4, while the administrative cross-reference (`rbi_credit_risk_std_2026 p.5`) is prevented from taking Rank 1.
 
 ---
 
-## 8. Efficiency, Robustness & Benchmark Results
+## 8. End-to-End Grounded RAG Question Answering Validation
+
+We evaluated the complete question-answering pipeline using `RegulatoryQAEngine` paired with Groq (`qwen/qwen3.8-27b`, temperature 0.0) across 8 representative categories (recorded in `eval/rag_qa_evaluation_results.json`):
+
+| Category | Representative Query | LLM Outcome & Grounding | Provenance Citations | Insufficient Context Handled |
+|---|---|---|:---:|:---:|
+| **1. Straightforward Fact** | Annex 1 Item 2 agency bank name | **Grounded Fact**: Correctly extracted **Bandhan Bank Ltd.** under S. No. 2 | `rbi_agency_comm_2026`, Page 16 | N/A |
+| **2. Statutory Definition** | IRAC Clause 6(17) out-of-order definition | **100% Grounded**: Stated all 3 90-day conditions + Explanations 1 & 2 | `rbi_asset_class_irac_2026`, Page 7 | N/A |
+| **3. Multi-Condition Clause** | IRAC Clause 10 substandard, doubtful, loss | **Partially Grounded**: Defined Doubtful and Loss in full; truthfully noted Substandard standalone criteria was absent due to chunk boundary cut | `rbi_asset_class_irac_2026`, Page 16 | N/A |
+| **4. Structured Table** | Pension circular reference dated 14.10.2009 | **100% Grounded**: Correctly extracted `Ref.DGBA.GAD.No.H 3194/45.01.001/2009-10` | `rbi_pension_2026`, Page 19 | N/A |
+| **5. Multi-Chunk Criteria** | IRAC Clause 8 NPA classification conditions | **Honest Refusal (Zero Hallucination)**: Because `struct_0008` ranked at 7 (outside top-6 context), the LLM strictly refused to invent Clause 8 | None (No fabricated citations) | **Properly Admitted** |
+| **6. Specific Issuer Criteria** | RBI Internal Ombudsman fit and proper standards | **100% Grounded**: Extracted GM rank, 7y exp, age $\le 70$, 5-day notice | `rbi_io_comm_2026`, Pages 3–4 | N/A |
+| **7. Insufficient Evidence** | Unindexed SEBI mutual fund insider trading penalty | **Honest Refusal (Zero Hallucination)**: Refused to fabricate statutory penalty amounts | None (No fabricated citations) | **Properly Admitted** |
+| **8. Ambiguous Query** | When does a facility become non-performing? | **Honest Refusal (Zero Hallucination)**: Refused because specific classification thresholds were absent from top-5 context | `rbi_asset_class_irac_2026`, Page 8 | **Properly Admitted** |
+
+### Anti-Hallucination & Provenance Guarantees:
+- **Zero Hallucination on Missing Evidence**: Across Categories 5, 7, and 8, the engine strictly adhered to the system prompt and refused to fabricate statutory rules, outputting the mandatory disclaimer: *"The available indexed regulatory documents do not provide sufficient evidence to answer this question."*
+- **Masthead Denoising**: Repetitive bilingual headers (`भारतीय ǐरजवर् बैंक`, `RESERVE BANK OF INDIA`) are stripped before prompt context formulation, preventing token dilution.
+- **Complete Provenance**: Every generated claim is mapped directly to Source Index, Document ID, Page Number, and Section Heading.
+
+---
+
+## 9. Efficiency, Robustness & Verified Baseline Statistics
 
 | Metric | Measured Value | Operational Significance |
 |---|:---:|---|
-| **Full-Corpus Ingestion (Run 1)** | **187.87 s (~3.13 min)** | End-to-end parse, OCR, embedding, guarded write, and CAS promotion across all 40 PDFs / 1,123 pages (16.73 s / 100 pages, 5.98 pgs/sec) |
-| **Idempotent Re-Run (Run 2)** | **0.09 s (90 ms)** | Instantaneous idempotency detection via SHA-256 fingerprint matching across all 40 documents (**2,087x speedup**, 0 new chunks, 0 duplicates) |
-| **Total Active Chunks** | **1,604 Chunks** | In collection `policylens_v1` (1,763 chunks total across all collections) |
-| **Warm Vector Query Latency** | **11.61 ms** | Sub-15ms vector retrieval over 20 repeated queries against active ChromaDB HNSW index (min: 10.53 ms, p95: 14.58 ms) |
-| **Cold CLI Query Latency** | **3.28 s** | Includes Python runtime startup and SentenceTransformers weight initialization |
-| **Local Embedding Compute Cost** | **$0.00 (Zero API Cost)** | SentenceTransformers CPU execution; requires ~2.5 seconds CPU time per 1,000 chunks |
-| **SQLite Registry Footprint** | **112.0 KB** | Fully indexed metadata and lifecycle audit log across 40 documents |
-| **ChromaDB Storage Footprint** | **28.25 MB** | Complete local persistent HNSW vector storage covering all 40 regulatory circulars |
-| **Automated Test Suite** | **38 / 38 Passing** | Full test suite executes in 1.1s with zero external network dependencies |
+| **Corpus Volume** | **40 PDFs / 1,123 Pages** | Catalogued in `data/manifest.csv` (22 RBI, 9 DFS, 8 SEBI, 1 IRDAI) |
+| **Active Collections** | **3 Verified Collections** | `policylens_v1` (40 docs, 1,604 chunks), `policylens_structure` (6 docs, 114 chunks), `policylens_fixed` (4 docs, 45 chunks) |
+| **Automated Test Suite** | **55 / 55 Passing** | Executed in 7.8s with zero network dependencies across 5 test modules |
+| **Full-Corpus Ingestion** | **187.87 s (~3.13 min)** | End-to-end parse, OCR, embedding, guarded write, and CAS promotion across 1,123 pages |
+| **Idempotent Re-Run** | **0.09 s (90 ms)** | Instantaneous idempotency detection via SHA-256 fingerprint matching (**2,087x speedup**) |
+| **Retrieval Benchmark MRR** | **0.9300** | On 25-question expert compliance benchmark with 0 regressions |
+| **Vector Storage Footprint** | **28.25 MB** | ChromaDB local HNSW persistent storage |
+| **Registry DB Footprint** | **112.0 KB** | SQLite ACID lifecycle state machine and audit log |
+| **Tested Environment** | **macOS ARM64 / Rosetta 2** | Python 3.11.7 x86_64 (`torch==2.2.2`, `transformers==4.46.3`, `sentence-transformers==3.4.1`) |
 
 ---
 

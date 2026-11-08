@@ -384,6 +384,531 @@ class TestRegulatoryQAEngine(unittest.TestCase):
         self.assertEqual(len(result["sources"]), 1)
         self.assertEqual(result["sources"][0]["document_id"], "rbi_offline_guideline")
 
+    def test_rag_qa_context_assembly_denoises_mastheads(self) -> None:
+        """
+        Tests that repetitive regulatory circular mastheads are removed from prompt context
+        so they do not pollute LLM token space.
+        """
+        self._seed_active_document(
+            doc_id="rbi_masthead_test",
+            fingerprint="fp_masthead_01",
+            version_id="ver_mast_1",
+            chunks=[
+                {
+                    "chunk_id": "mast_c1",
+                    "text": (
+                        "भारतीय ǐरजवर् बैंक\n"
+                        "__________________RESERVE BANK OF INDIA_________________\n"
+                        "Reserve Bank of India (Internal Ombudsman) Directions, 2026\n"
+                        "Substantive rule: Commercial banks with 10 or more outlets must appoint an IO."
+                    ),
+                    "page_number": 2,
+                    "section_heading": "Applicability",
+                }
+            ],
+        )
+
+        mock_llm = MockLLM()
+        qa_engine = RegulatoryQAEngine(
+            collection_name=self.collection_name,
+            llm_client=mock_llm,
+        )
+
+        qa_engine.answer_question(
+            query="What is the IO appointment threshold?",
+            chroma_client=self.chroma_client,
+            embedding_engine=self.embedding_engine,
+            registry_db_path=self.db_path,
+        )
+
+        self.assertIsNotNone(mock_llm.last_user_prompt)
+        prompt = mock_llm.last_user_prompt
+        # Boilerplate mastheads should be stripped
+        self.assertNotIn("भारतीय ǐरजवर् बैंक", prompt)
+        self.assertNotIn("__________________RESERVE BANK OF INDIA_________________", prompt)
+        # Substantive text must be preserved
+        self.assertIn("Commercial banks with 10 or more outlets must appoint an IO.", prompt)
+
+    def test_rag_qa_handles_empty_or_whitespace_query(self) -> None:
+        """
+        Tests graceful handling of empty or whitespace queries without exceptions.
+        """
+        qa_engine = RegulatoryQAEngine(collection_name=self.collection_name)
+        result = qa_engine.answer_question(
+            query="   ",
+            chroma_client=self.chroma_client,
+            embedding_engine=self.embedding_engine,
+            registry_db_path=self.db_path,
+        )
+        self.assertEqual(result["status"], "insufficient_context")
+        self.assertIn("do not provide sufficient evidence", result["answer"])
+        self.assertEqual(result["sources"], [])
+
+    @mock.patch("CS2_PolicyLens.search.apply_lexical_rerank")
+    @mock.patch("CS2_PolicyLens.search.retrieve_hybrid_candidates")
+    def test_rag_qa_hybrid_retrieval_mode(
+        self, mock_retrieve_hybrid: mock.MagicMock, mock_apply_rerank: mock.MagicMock
+    ) -> None:
+        """
+        Tests that use_hybrid=True invokes hybrid retrieval and Config 4 reranker.
+        """
+        mock_retrieve_hybrid.return_value = (
+            [
+                {
+                    "chunk_id": "c_hyb_1",
+                    "document_id": "doc_hyb",
+                    "page_number": 7,
+                    "section_heading": "Clause 8",
+                    "text": "Non-performing assets criteria.",
+                    "score": 0.65,
+                }
+            ],
+            1,
+            1,
+        )
+        mock_apply_rerank.return_value = [
+            {
+                "chunk_id": "c_hyb_1",
+                "document_id": "doc_hyb",
+                "page_number": 7,
+                "section_heading": "Clause 8",
+                "text": "Non-performing assets criteria.",
+                "score": 0.70,
+            }
+        ]
+
+        mock_llm = MockLLM()
+        qa_engine = RegulatoryQAEngine(
+            collection_name=self.collection_name,
+            llm_client=mock_llm,
+        )
+
+        res = qa_engine.answer_question(
+            query="What are NPA criteria?",
+            use_hybrid=True,
+            use_rerank=True,
+        )
+
+        self.assertEqual(res["status"], "success")
+        self.assertTrue(mock_retrieve_hybrid.called)
+        self.assertTrue(mock_apply_rerank.called)
+        self.assertIn("Non-performing assets criteria", mock_llm.last_user_prompt)
+
+    def test_clause_10_adjacent_chunk_expansion_reading_order_and_provenance(self) -> None:
+        """
+        Tests that adjacent expansion retrieves predecessor chunk 16 when chunk 17 is retrieved,
+        preserves document reading order, exposes both chunk IDs, and cites the complete page span (Pages 15-16).
+        """
+        doc_id = "rbi_irac_test_doc"
+        fp = "fp_irac_001"
+        ver = "ver_irac_1"
+
+        # Seed document with consecutive chunks 15, 16, 17, 18
+        self._seed_active_document(
+            doc_id=doc_id,
+            fingerprint=fp,
+            version_id=ver,
+            chunks=[
+                {
+                    "chunk_id": f"{doc_id}_struct_0015",
+                    "text": "Export project finance guidelines.",
+                    "page_number": 14,
+                    "section_heading": "Export Finance",
+                },
+                {
+                    "chunk_id": f"{doc_id}_struct_0016",
+                    "text": "10. Asset Classification Categories: (i) Sub-standard asset: An asset which has remained NPA for <= 12 months. (ii) Doubtful asset: An asset which has remained in the substandard",
+                    "page_number": 15,
+                    "section_heading": "(ii) Doubtful asset",
+                },
+                {
+                    "chunk_id": f"{doc_id}_struct_0017",
+                    "text": "category for 12 months. (iii) Loss asset: An asset where loss has been identified by the bank or RBI.",
+                    "page_number": 16,
+                    "section_heading": "Classification Details",
+                },
+                {
+                    "chunk_id": f"{doc_id}_struct_0018",
+                    "text": "11. Other Prudential Norms applicable to a bank.",
+                    "page_number": 17,
+                    "section_heading": "Prudential Norms",
+                },
+            ],
+        )
+
+        # Ensure chunk_index and metadata are populated on seeded records
+        col = self.chroma_client.get_or_create_collection(self.collection_name)
+        for idx in range(15, 19):
+            cid = f"{doc_id}_struct_{idx:04d}"
+            col.records[cid]["metadata"]["chunk_index"] = idx
+            col.records[cid]["metadata"]["strategy"] = "structure_aware"
+
+        mock_llm = MockLLM()
+        qa_engine = RegulatoryQAEngine(
+            collection_name=self.collection_name,
+            llm_client=mock_llm,
+            expand_adjacent=True,
+            max_expanded_hits=1,
+            include_predecessor=True,
+            include_successor=False,
+        )
+
+        # Simulate retrieval that only returned chunk 17 (e.g. chunk 16 had low vector score)
+        with mock.patch("CS2_PolicyLens.src.rag_qa.query_policy_corpus") as mock_query:
+            mock_query.return_value = [
+                {
+                    "chunk_id": f"{doc_id}_struct_0017",
+                    "document_id": doc_id,
+                    "page_number": 16,
+                    "section_heading": "Classification Details",
+                    "text": "category for 12 months. (iii) Loss asset: An asset where loss has been identified by the bank or RBI.",
+                    "score": 0.62,
+                    "metadata": {
+                        "document_id": doc_id,
+                        "chunk_index": 17,
+                        "version_id": ver,
+                        "index_fingerprint": fp,
+                        "collection_name": self.collection_name,
+                        "page_number": 16,
+                        "strategy": "structure_aware",
+                    },
+                }
+            ]
+
+            res = qa_engine.answer_question(
+                query="What are the definitions of substandard asset, doubtful asset and loss asset under Clause 10?",
+                chroma_client=self.chroma_client,
+                embedding_engine=self.embedding_engine,
+                registry_db_path=self.db_path,
+            )
+
+        self.assertEqual(res["status"], "success")
+        prompt = mock_llm.last_user_prompt
+        self.assertIsNotNone(prompt)
+
+        # 1. Both chunks 0016 and 0017 must be present in prompt context
+        self.assertIn(f"{doc_id}_struct_0016", prompt)
+        self.assertIn(f"{doc_id}_struct_0017", prompt)
+
+        # 2. Reading order preserved: chunk 16 appears before chunk 17
+        idx_16 = prompt.index(f"{doc_id}_struct_0016")
+        idx_17 = prompt.index(f"{doc_id}_struct_0017")
+        self.assertLess(idx_16, idx_17)
+
+        # 3. Context contains all three definitions: Sub-standard, Doubtful, and Loss
+        self.assertIn("Sub-standard asset", prompt)
+        self.assertIn("Doubtful asset", prompt)
+        self.assertIn("Loss asset", prompt)
+
+        # 4. Citation and provenance expose complete page span (Pages 15-16) and constituent chunk IDs
+        self.assertEqual(len(res["sources"]), 1)
+        src = res["sources"][0]
+        self.assertEqual(src["document_id"], doc_id)
+        self.assertEqual(src["page_number"], "15-16")
+        self.assertEqual(src["page_numbers"], [15, 16])
+        self.assertIn(f"{doc_id}_struct_0016", src["constituent_chunk_ids"])
+        self.assertIn(f"{doc_id}_struct_0017", src["constituent_chunk_ids"])
+
+    def test_adjacent_expansion_rejects_cross_document_boundary(self) -> None:
+        """
+        Tests that an adjacent chunk from a different document is strictly rejected
+        and never leaks into the prompt context.
+        """
+        doc_a = "doc_alpha"
+        doc_b = "doc_beta"
+
+        self._seed_active_document(
+            doc_id=doc_a,
+            fingerprint="fp_a",
+            version_id="ver_a",
+            chunks=[
+                {
+                    "chunk_id": f"{doc_a}_struct_0001",
+                    "text": "Doc Alpha Chunk 1 content.",
+                    "page_number": 2,
+                    "section_heading": "Alpha Section",
+                }
+            ],
+        )
+        self._seed_active_document(
+            doc_id=doc_b,
+            fingerprint="fp_b",
+            version_id="ver_b",
+            chunks=[
+                {
+                    "chunk_id": f"{doc_b}_struct_0000",
+                    "text": "Doc Beta Chunk 0 content.",
+                    "page_number": 1,
+                    "section_heading": "Beta Section",
+                }
+            ],
+        )
+
+        col = self.chroma_client.get_or_create_collection(self.collection_name)
+        col.records[f"{doc_a}_struct_0001"]["metadata"]["chunk_index"] = 1
+        col.records[f"{doc_a}_struct_0001"]["metadata"]["strategy"] = "structure_aware"
+        col.records[f"{doc_b}_struct_0000"]["metadata"]["chunk_index"] = 0
+        col.records[f"{doc_b}_struct_0000"]["metadata"]["strategy"] = "structure_aware"
+
+        mock_llm = MockLLM()
+        qa_engine = RegulatoryQAEngine(
+            collection_name=self.collection_name,
+            llm_client=mock_llm,
+            expand_adjacent=True,
+        )
+
+        with mock.patch("CS2_PolicyLens.src.rag_qa.query_policy_corpus") as mock_query:
+            mock_query.return_value = [
+                {
+                    "chunk_id": f"{doc_a}_struct_0001",
+                    "document_id": doc_a,
+                    "page_number": 2,
+                    "section_heading": "Alpha Section",
+                    "text": "Doc Alpha Chunk 1 content.",
+                    "score": 0.80,
+                    "metadata": {
+                        "document_id": doc_a,
+                        "chunk_index": 1,
+                        "version_id": "ver_a",
+                        "index_fingerprint": "fp_a",
+                        "collection_name": self.collection_name,
+                        "page_number": 2,
+                    },
+                }
+            ]
+
+            res = qa_engine.answer_question(
+                query="Query for Alpha",
+                chroma_client=self.chroma_client,
+                embedding_engine=self.embedding_engine,
+                registry_db_path=self.db_path,
+            )
+
+        self.assertEqual(res["status"], "success")
+        prompt = mock_llm.last_user_prompt
+        self.assertNotIn(doc_b, prompt)
+        self.assertNotIn("Doc Beta Chunk 0", prompt)
+        self.assertEqual(res["sources"][0]["constituent_chunk_ids"], [f"{doc_a}_struct_0001"])
+
+    def test_adjacent_expansion_rejects_mismatched_version_or_fingerprint(self) -> None:
+        """
+        Tests that candidate neighbor chunks with mismatched version_id or fingerprint
+        (e.g., stale or superseded versions) are strictly rejected.
+        """
+        doc_id = "doc_version_check"
+        active_ver = "ver_active_10"
+        active_fp = "fp_active_10"
+
+        # Seed active primary chunk
+        self._seed_active_document(
+            doc_id=doc_id,
+            fingerprint=active_fp,
+            version_id=active_ver,
+            chunks=[
+                {
+                    "chunk_id": f"{doc_id}_struct_0001",
+                    "text": "Active version content for chunk 1.",
+                    "page_number": 2,
+                    "section_heading": "Section Active",
+                }
+            ],
+        )
+
+        # Manually inject predecessor chunk 0 with stale version into Chroma collection
+        col = self.chroma_client.get_or_create_collection(self.collection_name)
+        col.records[f"{doc_id}_struct_0001"]["metadata"]["chunk_index"] = 1
+        col.records[f"{doc_id}_struct_0001"]["metadata"]["strategy"] = "structure_aware"
+
+        col.add(
+            ids=[f"{doc_id}_struct_0000"],
+            embeddings=self.embedding_engine.encode(["Stale predecessor content."]),
+            documents=["Stale predecessor content."],
+            metadatas=[
+                {
+                    "document_id": doc_id,
+                    "collection_name": self.collection_name,
+                    "index_fingerprint": "fp_stale_old",  # Mismatched fingerprint
+                    "version_id": "ver_stale_old",        # Mismatched version_id
+                    "chunk_index": 0,
+                    "page_number": 1,
+                    "section_heading": "Stale Section",
+                }
+            ],
+        )
+
+        mock_llm = MockLLM()
+        qa_engine = RegulatoryQAEngine(
+            collection_name=self.collection_name,
+            llm_client=mock_llm,
+            expand_adjacent=True,
+        )
+
+        with mock.patch("CS2_PolicyLens.src.rag_qa.query_policy_corpus") as mock_query:
+            mock_query.return_value = [
+                {
+                    "chunk_id": f"{doc_id}_struct_0001",
+                    "document_id": doc_id,
+                    "page_number": 2,
+                    "section_heading": "Section Active",
+                    "text": "Active version content for chunk 1.",
+                    "score": 0.85,
+                    "metadata": {
+                        "document_id": doc_id,
+                        "chunk_index": 1,
+                        "version_id": active_ver,
+                        "index_fingerprint": active_fp,
+                        "collection_name": self.collection_name,
+                        "page_number": 2,
+                    },
+                }
+            ]
+
+            res = qa_engine.answer_question(
+                query="Query for version check",
+                chroma_client=self.chroma_client,
+                embedding_engine=self.embedding_engine,
+                registry_db_path=self.db_path,
+            )
+
+        self.assertEqual(res["status"], "success")
+        prompt = mock_llm.last_user_prompt
+        self.assertNotIn("Stale predecessor content", prompt)
+        self.assertEqual(res["sources"][0]["constituent_chunk_ids"], [f"{doc_id}_struct_0001"])
+
+    def test_adjacent_expansion_deduplicates_already_retrieved_neighbors(self) -> None:
+        """
+        Tests that when both a primary chunk and its neighbor were retrieved in the candidate pool,
+        the neighbor is merged into the block and NOT duplicated in a second context block.
+        """
+        doc_id = "doc_dedup_test"
+        fp = "fp_dedup_1"
+        ver = "ver_dedup_1"
+
+        self._seed_active_document(
+            doc_id=doc_id,
+            fingerprint=fp,
+            version_id=ver,
+            chunks=[
+                {
+                    "chunk_id": f"{doc_id}_struct_0005",
+                    "text": "Chunk 5 text content.",
+                    "page_number": 5,
+                    "section_heading": "Section 5",
+                },
+                {
+                    "chunk_id": f"{doc_id}_struct_0006",
+                    "text": "continuation text of chunk 5.",
+                    "page_number": 6,
+                    "section_heading": "Section 6",
+                },
+            ],
+        )
+
+        col = self.chroma_client.get_or_create_collection(self.collection_name)
+        col.records[f"{doc_id}_struct_0005"]["metadata"]["chunk_index"] = 5
+        col.records[f"{doc_id}_struct_0005"]["metadata"]["strategy"] = "structure_aware"
+        col.records[f"{doc_id}_struct_0006"]["metadata"]["chunk_index"] = 6
+        col.records[f"{doc_id}_struct_0006"]["metadata"]["strategy"] = "structure_aware"
+
+        mock_llm = MockLLM()
+        qa_engine = RegulatoryQAEngine(
+            collection_name=self.collection_name,
+            llm_client=mock_llm,
+            expand_adjacent=True,
+            max_expanded_hits=2,
+        )
+
+        # Simulate retrieval where chunk 6 is rank 1 and chunk 5 is rank 2
+        with mock.patch("CS2_PolicyLens.src.rag_qa.query_policy_corpus") as mock_query:
+            mock_query.return_value = [
+                {
+                    "chunk_id": f"{doc_id}_struct_0006",
+                    "document_id": doc_id,
+                    "page_number": 6,
+                    "section_heading": "Section 6",
+                    "text": "continuation text of chunk 5.",
+                    "score": 0.90,
+                    "metadata": {
+                        "document_id": doc_id,
+                        "chunk_index": 6,
+                        "version_id": ver,
+                        "index_fingerprint": fp,
+                        "collection_name": self.collection_name,
+                        "page_number": 6,
+                    },
+                },
+                {
+                    "chunk_id": f"{doc_id}_struct_0005",
+                    "document_id": doc_id,
+                    "page_number": 5,
+                    "section_heading": "Section 5",
+                    "text": "Chunk 5 text content.",
+                    "score": 0.70,
+                    "metadata": {
+                        "document_id": doc_id,
+                        "chunk_index": 5,
+                        "version_id": ver,
+                        "index_fingerprint": fp,
+                        "collection_name": self.collection_name,
+                        "page_number": 5,
+                    },
+                },
+            ]
+
+            res = qa_engine.answer_question(
+                query="Query for dedup",
+                chroma_client=self.chroma_client,
+                embedding_engine=self.embedding_engine,
+                registry_db_path=self.db_path,
+            )
+
+        self.assertEqual(res["status"], "success")
+        # Exactly 1 consolidated source block created; chunk 5 is NOT repeated as Source 2
+        self.assertEqual(len(res["sources"]), 1)
+        self.assertEqual(
+            res["sources"][0]["constituent_chunk_ids"],
+            [f"{doc_id}_struct_0005", f"{doc_id}_struct_0006"],
+        )
+        prompt = mock_llm.last_user_prompt
+        self.assertEqual(prompt.count("[Source 1"), 1)
+        self.assertEqual(prompt.count("[Source 2"), 0)
+
+    def test_trailing_preposition_boundary_policy_and_clause_10_isolation(self) -> None:
+        """
+        Tests the selective boundary detector on trailing prepositions ('for', 'to', 'of', 'with'):
+        1. Prepositions terminating headings, titles, or trailing sub-clauses (e.g. '...schema for',
+           'Directions with respect to', 'Powers of') do NOT trigger false-positive successor expansion.
+        2. Genuine incomplete sentences terminating with split punctuation (',', '—', '-') or
+           coordinating conjunctions ('and', 'or') DO trigger expansion.
+        3. Predecessors starting with lowercase continuations ('category for a period...') DO trigger expansion.
+        4. Verifies that Chunk 17 ('...schema for') selectively fetches predecessor Chunk 16
+           while strictly rejecting Chunk 18, ensuring Clause 10 remains isolated.
+        """
+        from CS2_PolicyLens.src.rag_qa import (
+            _ends_with_incomplete_sentence,
+            _starts_with_incomplete_sentence,
+        )
+
+        # 1. Prepositions terminating lines without punctuation must NOT trigger successor expansion
+        self.assertFalse(_ends_with_incomplete_sentence("...schema for"))
+        self.assertFalse(_ends_with_incomplete_sentence("Master Directions with respect to"))
+        self.assertFalse(_ends_with_incomplete_sentence("Powers of"))
+        self.assertFalse(_ends_with_incomplete_sentence("In accordance with"))
+        self.assertFalse(_ends_with_incomplete_sentence("Risk weight for"))
+
+        # 2. Genuine incomplete sentences terminating in split punctuation or conjunctions MUST trigger expansion
+        self.assertTrue(_ends_with_incomplete_sentence("subject to the provisions of,"))
+        self.assertTrue(_ends_with_incomplete_sentence("provided that the bank shall—"))
+        self.assertTrue(_ends_with_incomplete_sentence("deficiencies are not corrected, and"))
+        self.assertTrue(_ends_with_incomplete_sentence("under Clause 10("))
+        self.assertTrue(_ends_with_incomplete_sentence("sub-standard assets re-"))
+
+        # 3. Lowercase sentence continuation MUST trigger predecessor expansion
+        self.assertTrue(_starts_with_incomplete_sentence("category for a period of twelve months."))
+        self.assertTrue(_starts_with_incomplete_sentence("and shall be classified as non-performing."))
+        self.assertFalse(_starts_with_incomplete_sentence("10. Asset classification categories."))
+        self.assertFalse(_starts_with_incomplete_sentence("A bank shall ensure compliance."))
+
 
 if __name__ == "__main__":
     unittest.main()

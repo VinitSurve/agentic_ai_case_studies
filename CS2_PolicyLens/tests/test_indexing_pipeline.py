@@ -20,11 +20,19 @@ from unittest import mock
 
 import pymupdf as fitz
 
+from CS2_PolicyLens.src.chunker import RegulatoryChunker
 from CS2_PolicyLens.src.embeddings import MockEmbeddingEngine
 from CS2_PolicyLens.src.indexing_pipeline import (
     compute_index_fingerprint,
     index_pdf_document,
     query_policy_corpus,
+)
+from CS2_PolicyLens.src.models import (
+    BlockType,
+    DocumentDiagnostics,
+    ExtractionMethod,
+    ParsedBlock,
+    ParsedDocument,
 )
 from CS2_PolicyLens.src.version_registry import (
     VectorMetadataMismatchError,
@@ -104,6 +112,36 @@ class MockChromaCollection:
         if where is None:
             return len(self.records)
         return sum(1 for rec in self.records.values() if self._matches_filter(rec["metadata"], where))
+
+    def get(
+        self,
+        ids: list[str] | None = None,
+        where: dict[str, Any] | None = None,
+        limit: int | None = None,
+        include: list[str] | None = None,
+        where_document: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        matching_ids = []
+        matching_docs = []
+        matching_metas = []
+        matching_embs = []
+        for i, rec in self.records.items():
+            if ids is not None and i not in ids:
+                continue
+            if where is not None and not self._matches_filter(rec["metadata"], where):
+                continue
+            matching_ids.append(rec["id"])
+            matching_docs.append(rec["document"])
+            matching_metas.append(rec["metadata"])
+            matching_embs.append(rec["embedding"])
+            if limit is not None and len(matching_ids) >= limit:
+                break
+        return {
+            "ids": matching_ids,
+            "documents": matching_docs,
+            "metadatas": matching_metas,
+            "embeddings": matching_embs,
+        }
 
     def _matches_filter(self, meta: dict[str, Any], where: dict[str, Any]) -> bool:
         if not where:
@@ -392,6 +430,145 @@ class TestIndexingPipelineIntegration(unittest.TestCase):
 
         # ChromaDB count unchanged
         self.assertEqual(col.count(), initial_count)
+
+
+class TestChapterBoundaryChunkerRegression(unittest.TestCase):
+    """
+    Regression tests verifying that major CHAPTER headings cleanly flush pending
+    buffers, isolating chapter contents and preventing cross-chapter contamination.
+    """
+
+    def setUp(self) -> None:
+        self.chunker = RegulatoryChunker(target_body_tokens=350)
+        self.doc_id = "RBI_IRAC_REGRESSION"
+        self.diagnostics = DocumentDiagnostics(document_id=self.doc_id, total_pages=15)
+
+    def _make_block(
+        self,
+        b_id: str,
+        page_num: int,
+        b_type: str,
+        text: str,
+        table_markdown: str | None = None,
+    ) -> ParsedBlock:
+        return ParsedBlock(
+            document_id=self.doc_id,
+            page_number=page_num,
+            block_id=b_id,
+            block_type=b_type,
+            text=text,
+            bounding_box=(50.0, 50.0, 500.0, 70.0),
+            reading_order=0,
+            extraction_method=ExtractionMethod.NATIVE_TEXT,
+            table_markdown=table_markdown,
+        )
+
+    def test_chapter_boundary_flushes_pending_chapter_1_content(self) -> None:
+        """
+        Verifies that:
+        1. Pending Chapter I content is emitted before Chapter II begins.
+        2. Chapter II content does not share a chunk with preceding Chapter I definitions.
+        3. The new Chapter II chunk receives correct section heading metadata.
+        """
+        blocks = [
+            self._make_block("b1", 4, BlockType.HEADING, "Chapter I: Preliminary"),
+            self._make_block("b2", 8, BlockType.LIST_ITEM, "(31) “Commercial Real Estate” definition."),
+            self._make_block("b3", 9, BlockType.HEADING, "7. All other expressions shall have meaning assigned."),
+            self._make_block("b4", 10, BlockType.HEADING, "Chapter II: Classification as Non-Performing Asset"),
+            self._make_block("b5", 10, BlockType.HEADING, "A. Classification as Non-Performing Asset"),
+            self._make_block("b6", 10, BlockType.LIST_ITEM, "8. A bank shall classify a financial asset as NPA if satisfied:"),
+            self._make_block("b7", 10, BlockType.LIST_ITEM, "(1) If interest remains overdue for > 90 days."),
+        ]
+        doc = ParsedDocument(document_id=self.doc_id, total_pages=10, blocks=blocks, diagnostics=self.diagnostics)
+        chunks = self.chunker.chunk(doc, "policylens_structure", "fp_reg", "v1")
+
+        self.assertEqual(len(chunks), 2)
+
+        # Chunk 0: Chapter I content
+        chunk0 = chunks[0]
+        self.assertEqual(chunk0.chunk_index, 0)
+        self.assertIn("Chapter I: Preliminary", chunk0.metadata["section_heading"])
+        self.assertIn("(31) “Commercial Real Estate” definition.", chunk0.text)
+        self.assertIn("7. All other expressions", chunk0.text)
+        self.assertNotIn("Chapter II", chunk0.text)
+        self.assertNotIn("8. A bank shall classify", chunk0.text)
+
+        # Chunk 1: Chapter II content cleanly isolated
+        chunk1 = chunks[1]
+        self.assertEqual(chunk1.chunk_index, 1)
+        self.assertEqual(chunk1.metadata["section_heading"], "A. Classification as Non-Performing Asset")
+        self.assertIn("Chapter II: Classification as Non-Performing Asset", chunk1.text)
+        self.assertIn("8. A bank shall classify a financial asset as NPA if satisfied:", chunk1.text)
+        self.assertIn("(1) If interest remains overdue for > 90 days.", chunk1.text)
+        self.assertNotIn("(31) “Commercial Real Estate” definition.", chunk1.text)
+        self.assertNotIn("7. All other expressions", chunk1.text)
+
+    def test_ordinary_paragraphs_within_chapter_are_not_unnecessarily_split(self) -> None:
+        """
+        Verifies that ordinary paragraphs within a chapter stay within the same chunk
+        as long as the cumulative tokens are below the target token budget.
+        """
+        blocks = [
+            self._make_block("b1", 1, BlockType.HEADING, "Section 1: General Principles"),
+            self._make_block("b2", 1, BlockType.PARAGRAPH, "Paragraph 1: Core principles governing risk management."),
+            self._make_block("b3", 1, BlockType.PARAGRAPH, "Paragraph 2: Additional supervisory expectations."),
+            self._make_block("b4", 1, BlockType.PARAGRAPH, "Paragraph 3: Operational controls and compliance."),
+        ]
+        doc = ParsedDocument(document_id=self.doc_id, total_pages=1, blocks=blocks, diagnostics=self.diagnostics)
+        chunks = self.chunker.chunk(doc, "policylens_structure", "fp_reg", "v1")
+
+        self.assertEqual(len(chunks), 1)
+        self.assertIn("Paragraph 1", chunks[0].text)
+        self.assertIn("Paragraph 2", chunks[0].text)
+        self.assertIn("Paragraph 3", chunks[0].text)
+
+    def test_table_handling_and_metadata_preserved(self) -> None:
+        """
+        Verifies that markdown table blocks continue to be emitted as standalone chunks
+        with correct table metadata.
+        """
+        blocks = [
+            self._make_block("b1", 1, BlockType.HEADING, "Chapter III: Asset Ratios"),
+            self._make_block("b2", 1, BlockType.PARAGRAPH, "Overview of ratios."),
+            self._make_block(
+                "b3", 1, BlockType.TABLE, "",
+                table_markdown="| Category | Provision |\n|---|---|\n| Substandard | 15% |",
+            ),
+            self._make_block("b4", 1, BlockType.PARAGRAPH, "Post-table explanatory notes."),
+        ]
+        doc = ParsedDocument(document_id=self.doc_id, total_pages=1, blocks=blocks, diagnostics=self.diagnostics)
+        chunks = self.chunker.chunk(doc, "policylens_structure", "fp_reg", "v1")
+
+        self.assertEqual(len(chunks), 3)
+        # Pre-table chunk
+        self.assertIn("Overview of ratios.", chunks[0].text)
+        # Table chunk
+        table_chunk = chunks[1]
+        self.assertEqual(table_chunk.metadata["block_type"], "table")
+        self.assertIn("| Substandard | 15% |", table_chunk.text)
+        # Post-table chunk
+        self.assertIn("Post-table explanatory notes.", chunks[2].text)
+
+    def test_toc_lines_with_dot_leaders_do_not_trigger_flush(self) -> None:
+        """
+        Verifies that Table of Contents lines (containing dot leaders '....')
+        do not trigger a chapter boundary flush.
+        """
+        self.assertFalse(
+            RegulatoryChunker._is_major_chapter_heading(
+                "Chapter I:  Preliminary ................................................................ 4"
+            )
+        )
+        self.assertFalse(
+            RegulatoryChunker._is_major_chapter_heading(
+                "Chapter II: Classification as Non-Performing Asset ..................................... 10"
+            )
+        )
+        self.assertTrue(
+            RegulatoryChunker._is_major_chapter_heading(
+                "Chapter II: Classification as Non-Performing Asset"
+            )
+        )
 
 
 if __name__ == "__main__":
