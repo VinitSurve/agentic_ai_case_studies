@@ -40,7 +40,12 @@ CS2_PolicyLens/data/chroma_db/
 CS2_PolicyLens/data/pdfs/
 *.pdf
 !CS1_ClaimFast/report/report_CS1.pdf
+!CS1_ClaimFast/report_CS1.pdf
 !CS2_PolicyLens/report/report_CS2.pdf
+!CS2_PolicyLens/report_CS2.pdf
+
+# Submission staging build directory (canonical deliverables reside in CS2_PolicyLens/)
+CS2_PolicyLens/submission/
 
 # Local-only demo screenshot generator (retained locally only)
 CS1_ClaimFast/code/generate_demo_screenshots.py

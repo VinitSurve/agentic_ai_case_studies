@@ -30,6 +30,9 @@ from CS2_PolicyLens.src.config import config
 from CS2_PolicyLens.src.indexing_pipeline import (
     get_chroma_collection,
     query_policy_corpus,
+    resolve_allowed_document_ids,
+    parse_filter_expression,
+    build_document_where_clause,
 )
 from CS2_PolicyLens.src.rag_qa import RegulatoryQAEngine
 from CS2_PolicyLens.src.version_registry import get_database_connection
@@ -261,10 +264,13 @@ def retrieve_hybrid_candidates(
     active_doc_filter: dict[str, Any] | None = None,
     use_entity_expansion: bool = True,
     manifest_meta: dict[str, dict[str, Any]] | None = None,
+    allowed_doc_ids: set[str] | Sequence[str] | None = None,
+    metadata_filter: str | dict[str, Any] | None = None,
 ) -> tuple[list[dict[str, Any]], int, int]:
     """
     Generates hybrid candidates by merging dense vector search and ChromaDB lexical matching,
     with optional entity-level candidate expansion for explicit statutory entity queries.
+    Strictly respects active-version isolation and optional metadata/document filters.
     Returns: (deduplicated_candidate_list, raw_pool_count, dedup_pool_count)
     """
     from CS2_PolicyLens.src.embeddings import EmbeddingEngine
@@ -281,6 +287,20 @@ def retrieve_hybrid_candidates(
 
     if not active_fps:
         return [], 0, 0
+
+    if manifest_meta is None:
+        manifest_meta = _load_manifest_metadata()
+
+    # Resolve allowed document IDs if filter is passed
+    if allowed_doc_ids is None and metadata_filter is not None:
+        allowed_doc_ids = resolve_allowed_document_ids(metadata_filter, manifest_meta)
+
+    if allowed_doc_ids is not None:
+        allowed_doc_ids = set(allowed_doc_ids)
+        if len(allowed_doc_ids) == 0:
+            return [], 0, 0
+        if active_doc_filter is None:
+            active_doc_filter = build_document_where_clause(allowed_doc_ids)
 
     base_filter: dict[str, Any] = {
         "$and": [
@@ -351,9 +371,12 @@ def retrieve_hybrid_candidates(
         dense_res["metadatas"][0],
         dense_res["distances"][0],
     ):
+        did = meta.get("document_id")
+        if allowed_doc_ids is not None and did not in allowed_doc_ids:
+            continue
         candidates[cid] = {
             "chunk_id": cid,
-            "document_id": meta.get("document_id"),
+            "document_id": did,
             "text": doc,
             "score": round(1.0 - dist, 4) if dist is not None else 0.0,
             "page_number": meta.get("page_number"),
@@ -368,13 +391,16 @@ def retrieve_hybrid_candidates(
         lex_res["metadatas"],
         lex_res["embeddings"],
     ):
+        did = meta.get("document_id")
+        if allowed_doc_ids is not None and did not in allowed_doc_ids:
+            continue
         if cid in candidates:
             candidates[cid]["source"] = "both"
         else:
             cos = float(np.dot(q_emb, emb))
             candidates[cid] = {
                 "chunk_id": cid,
-                "document_id": meta.get("document_id"),
+                "document_id": did,
                 "text": doc,
                 "score": round(cos, 4),
                 "page_number": meta.get("page_number"),
@@ -392,11 +418,13 @@ def retrieve_hybrid_candidates(
         ent_res = detect_query_entity(query)
         if ent_res.confidence == "explicit" and ent_res.entity_type:
             matching_docs = get_entity_matching_doc_ids(ent_res.entity_type, manifest_meta)
+            if allowed_doc_ids is not None:
+                matching_docs = [d for d in matching_docs if d in allowed_doc_ids]
             if matching_docs:
                 if len(matching_docs) == 1:
                     doc_cond = {"document_id": matching_docs[0]}
                 else:
-                    doc_cond = {"document_id": {"$in": matching_docs}}
+                    doc_cond = {"document_id": {"$in": sorted(matching_docs)}}
 
                 ent_where = {"$and": [base_filter, doc_cond]}
                 try:
@@ -413,10 +441,13 @@ def retrieve_hybrid_candidates(
                             ent_res_dense["metadatas"][0],
                             ent_res_dense["distances"][0],
                         ):
+                            did = meta.get("document_id")
+                            if allowed_doc_ids is not None and did not in allowed_doc_ids:
+                                continue
                             if cid not in candidates:
                                 candidates[cid] = {
                                     "chunk_id": cid,
-                                    "document_id": meta.get("document_id"),
+                                    "document_id": did,
                                     "text": doc,
                                     "score": round(1.0 - dist, 4) if dist is not None else 0.0,
                                     "page_number": meta.get("page_number"),
@@ -557,25 +588,14 @@ def main() -> None:
     manifest_meta = _load_manifest_metadata()
 
     # Parse optional filter
-    filter_key, filter_val = None, None
     allowed_doc_ids: set[str] | None = None
     if args.filter:
-        if "=" in args.filter:
-            filter_key, filter_val = args.filter.split("=", 1)
-            filter_key = filter_key.strip().lower()
-            filter_val = filter_val.strip().lower()
-            if filter_key == "issuer":
-                allowed_doc_ids = {
-                    did
-                    for did, meta in manifest_meta.items()
-                    if filter_val in meta.get("issuer", "").lower()
-                }
-                # Also include document IDs prefixed with issuer shorthand (rbi_, sebi_, dfs_, irdai_)
-                prefix = f"{filter_val}_"
-                for did in manifest_meta:
-                    if did.lower().startswith(prefix):
-                        allowed_doc_ids.add(did)
-                print(f"[*] Applied metadata filter '{args.filter}' ({len(allowed_doc_ids)} matching documents).")
+        try:
+            allowed_doc_ids = resolve_allowed_document_ids(args.filter, manifest_meta)
+            print(f"[*] Applied metadata filter '{args.filter}' ({len(allowed_doc_ids)} matching documents).")
+        except ValueError as ve:
+            print(f"[-] Invalid filter error: {ve}")
+            sys.exit(1)
 
     # Mode 1: Search Query
     if active_query:
@@ -585,7 +605,7 @@ def main() -> None:
         if args.hybrid:
             doc_filter = None
             if allowed_doc_ids is not None:
-                doc_filter = {"document_id": {"$in": list(allowed_doc_ids)}}
+                doc_filter = build_document_where_clause(allowed_doc_ids)
             raw_candidates, raw_pool_sz, dedup_pool_sz = retrieve_hybrid_candidates(
                 query=active_query,
                 collection_name=target_collection,
@@ -594,6 +614,7 @@ def main() -> None:
                 use_expansion=args.expand,
                 active_doc_filter=doc_filter,
                 manifest_meta=manifest_meta,
+                allowed_doc_ids=allowed_doc_ids,
             )
         else:
             search_query = expand_query_text(active_query) if args.expand else active_query
@@ -602,6 +623,7 @@ def main() -> None:
                 query=search_query,
                 collection_name=target_collection,
                 top_k=candidate_k,
+                allowed_doc_ids=allowed_doc_ids,
             )
             raw_pool_sz, dedup_pool_sz = len(raw_candidates), len(raw_candidates)
 
@@ -616,13 +638,8 @@ def main() -> None:
                     h["issuer"] = manifest_meta[did].get("issuer", "")
 
             # Filter check
-            if allowed_doc_ids is not None:
-                prefix = f"{filter_val}_"
-                issuer_match = filter_val in (h.get("issuer") or "").lower()
-                prefix_match = did.lower().startswith(prefix)
-                id_match = did in allowed_doc_ids
-                if not (issuer_match or prefix_match or id_match):
-                    continue
+            if allowed_doc_ids is not None and did not in allowed_doc_ids:
+                continue
 
             candidates.append(h)
 
@@ -682,6 +699,12 @@ def main() -> None:
 
     # Mode 2: Grounded QA
     elif args.ask:
+        mode_desc = []
+        mode_desc.append("Hybrid Candidates" if args.hybrid else "Dense-Only Candidates")
+        mode_desc.append("Config 4 Rerank" if args.rerank else "Unranked Baseline")
+        mode_desc.append("Adjacent Expansion Active")
+        mode_str = " | ".join(mode_desc)
+
         print(f"[*] Processing Grounded Question: \"{args.ask}\"")
         qa_engine = RegulatoryQAEngine(
             collection_name=target_collection,
@@ -693,17 +716,24 @@ def main() -> None:
             top_k=args.top_k,
             use_hybrid=args.hybrid,
             use_rerank=args.rerank,
+            metadata_filter=args.filter,
+            allowed_doc_ids=allowed_doc_ids,
+            manifest_meta=manifest_meta,
         )
 
         print("\n" + "=" * 70)
         print("QUESTION:")
         print(res["question"])
         print("-" * 70)
+        if args.filter:
+            doc_count_str = f" ({len(allowed_doc_ids)} matching documents)" if allowed_doc_ids is not None else ""
+            print(f"FILTER APPLIED: {args.filter}{doc_count_str}")
+        print(f"RETRIEVAL MODE: {mode_str}")
+        print(f"ENGINE: {res.get('llm_used')}")
+        print(f"STATUS: {res['status'].upper()}")
+        print("-" * 70)
         print("ANSWER:")
         print(res["answer"])
-        print("-" * 70)
-        print(f"STATUS: {res['status'].upper()}")
-        print(f"ENGINE: {res.get('llm_used')}")
         print("=" * 70)
 
         sources = res.get("sources", [])
@@ -711,10 +741,11 @@ def main() -> None:
             print(f"\nSOURCES CITED ({len(sources)}):")
             for src in sources:
                 score_str = f" | Score: {src['retrieval_score']}" if src.get("retrieval_score") is not None else ""
+                chunks_str = f" | Chunks: {', '.join(src['constituent_chunk_ids'])}" if src.get("constituent_chunk_ids") else ""
                 print(
                     f"  [{src['source_index']}] Document: {src['document_id']} "
                     f"| Page: {src['page_number']} "
-                    f"| Section: {src['section_heading']}{score_str}"
+                    f"| Section: {src['section_heading']}{chunks_str}{score_str}"
                 )
         else:
             print("\nSOURCES CITED: None (Insufficient evidence context)")

@@ -322,6 +322,64 @@ class TestHybridCandidateGenerationAndMerging(unittest.TestCase):
             self.assertIn("source", c)
             self.assertIn(c["source"], ["dense", "lexical", "both"])
 
+    def test_parse_filter_expression(self) -> None:
+        from CS2_PolicyLens.src.indexing_pipeline import parse_filter_expression
+        self.assertEqual(parse_filter_expression("issuer=RBI"), {"issuer": "rbi"})
+        self.assertEqual(parse_filter_expression("document_id=rbi_kyc_2026"), {"document_id": "rbi_kyc_2026"})
+        self.assertEqual(parse_filter_expression({"issuer": "SEBI"}), {"issuer": "sebi"})
+        self.assertIsNone(parse_filter_expression(None))
+
+        with self.assertRaises(ValueError):
+            parse_filter_expression("malformed_filter_string")
+
+        with self.assertRaises(ValueError):
+            parse_filter_expression("invalid_field=value")
+
+    def test_resolve_allowed_document_ids_all_issuers(self) -> None:
+        from CS2_PolicyLens.src.indexing_pipeline import resolve_allowed_document_ids
+
+        manifest_mock = {
+            "rbi_kyc_2024": {"issuer": "Reserve Bank of India (RBI)"},
+            "rbi_asset_class_irac_2026": {"issuer": "Reserve Bank of India (RBI)"},
+            "sebi_lodr_2025": {"issuer": "Securities and Exchange Board of India (SEBI)"},
+            "irdai_corp_gov_2024": {"issuer": "Insurance Regulatory and Development Authority of India (IRDAI)"},
+            "dfs_nabfid_rules_2022": {"issuer": "Department of Financial Services, Ministry of Finance (DFS/GOI)"},
+        }
+
+        rbi_docs = resolve_allowed_document_ids("issuer=RBI", manifest_mock)
+        self.assertEqual(rbi_docs, {"rbi_kyc_2024", "rbi_asset_class_irac_2026"})
+
+        sebi_docs = resolve_allowed_document_ids("issuer=SEBI", manifest_mock)
+        self.assertEqual(sebi_docs, {"sebi_lodr_2025"})
+
+        irdai_docs = resolve_allowed_document_ids("issuer=IRDAI", manifest_mock)
+        self.assertEqual(irdai_docs, {"irdai_corp_gov_2024"})
+
+        dfs_docs = resolve_allowed_document_ids("issuer=DFS", manifest_mock)
+        self.assertEqual(dfs_docs, {"dfs_nabfid_rules_2022"})
+
+        doc_match = resolve_allowed_document_ids("document_id=sebi_lodr_2025", manifest_mock)
+        self.assertEqual(doc_match, {"sebi_lodr_2025"})
+
+    def test_hybrid_candidates_issuer_filter_constrains_results(self) -> None:
+        manifest_mock = {
+            "rbi_asset_class_irac_2026": {"issuer": "Reserve Bank of India (RBI)"},
+        }
+        allowed = {"rbi_asset_class_irac_2026"}
+        candidates, raw_pool, dedup_pool = retrieve_hybrid_candidates(
+            query="What are substandard, doubtful and loss assets under Clause 10?",
+            collection_name="policylens_v1",
+            top_k_dense=10,
+            top_k_lexical=10,
+            allowed_doc_ids=allowed,
+            manifest_meta=manifest_mock,
+        )
+        self.assertGreater(len(candidates), 0)
+        for c in candidates:
+            self.assertEqual(c["document_id"], "rbi_asset_class_irac_2026")
+            self.assertFalse(c["document_id"].startswith("dfs_"))
+            self.assertFalse(c["document_id"].startswith("sebi_"))
+
 
 if __name__ == "__main__":
     unittest.main()

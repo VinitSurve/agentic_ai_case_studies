@@ -3,10 +3,12 @@ PolicyLens (Case Study 2) – Minimal RAG Question Answering Engine
 
 Implements Phase 3.3 RAG Question Answering:
 - Retrieves strictly from active documents via SQLite-isolated ChromaDB query.
+- Supports metadata and issuer filtering to constrain QA candidate retrieval and citations.
 - Formulates grounded prompts requiring strict adherence to regulatory evidence.
-- Supports configurable local/cloud LLMs (Groq llama-3.3-70b-versatile) with automatic fallback.
-- Guarantees complete provenance citations (document_id, page_number, section_heading, score).
-- Returns an honest fallback when available evidence is insufficient.
+- Supports configurable local/cloud LLMs (Groq llama-3.3-70b-versatile, qwen, etc.) with automatic fallback.
+- Guarantees complete provenance citations (document_id, page_number/span, section_heading, score).
+- Provides structured, faithful extractive fallback when cloud LLMs are unavailable or unconfigured.
+- Evaluates evidence coverage to distinguish between complete answers, partial evidence, and insufficient context.
 """
 
 from __future__ import annotations
@@ -18,7 +20,11 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from CS2_PolicyLens.src.config import config
-from CS2_PolicyLens.src.indexing_pipeline import query_policy_corpus
+from CS2_PolicyLens.src.indexing_pipeline import (
+    build_document_where_clause,
+    query_policy_corpus,
+    resolve_allowed_document_ids,
+)
 
 logger = logging.getLogger("PolicyLens.RAG_QA")
 
@@ -69,6 +75,7 @@ def _fetch_adjacent_chunk(
     chroma_col: Any,
     primary_hit: dict[str, Any],
     direction: int,
+    allowed_doc_ids: set[str] | Sequence[str] | None = None,
 ) -> dict[str, Any] | None:
     """
     Fetches and strictly validates an adjacent chunk from the same ChromaDB collection.
@@ -76,7 +83,7 @@ def _fetch_adjacent_chunk(
     Validation & Invariant Enforcement:
     1. direction must be -1 (predecessor) or +1 (successor).
     2. chunk_index must equal primary_index + direction exactly.
-    3. document_id must match primary_hit.
+    3. document_id must match primary_hit and allowed_doc_ids.
     4. version_id must match primary_hit (preventing stale/staging leakage).
     5. index_fingerprint must match primary_hit (active version isolation).
     6. collection_name must match if specified.
@@ -89,6 +96,10 @@ def _fetch_adjacent_chunk(
     meta = primary_hit.get("metadata") or {}
     doc_id = meta.get("document_id") or primary_hit.get("document_id")
     if not doc_id:
+        return None
+
+    # Filter boundary check
+    if allowed_doc_ids is not None and doc_id not in allowed_doc_ids:
         return None
 
     curr_idx = meta.get("chunk_index")
@@ -159,6 +170,8 @@ def _fetch_adjacent_chunk(
     # Strict Identity and Boundary Checks
     if neighbor_meta.get("document_id") != doc_id:
         return None
+    if allowed_doc_ids is not None and neighbor_meta.get("document_id") not in allowed_doc_ids:
+        return None
     if version_id and neighbor_meta.get("version_id") and neighbor_meta["version_id"] != version_id:
         return None
     if fingerprint and neighbor_meta.get("index_fingerprint") and neighbor_meta["index_fingerprint"] != fingerprint:
@@ -208,6 +221,12 @@ def _starts_with_incomplete_sentence(text: str) -> bool:
     if first_char in (")", "]", "}", ",", ";", "—", "–"):
         return True
     if re.match(
+        r"^(?:\([2-9]|\(\d{2,}|\([b-z]|\((?:ii|iii|iv|v|vi|vii|viii|ix|x)\)|[2-9]\)|\d{2,}\)|[b-z]\))",
+        substantive,
+        re.IGNORECASE,
+    ):
+        return True
+    if re.match(
         r"^(?:and|or|but|nor|which|that|whereby|wherein|respectively)\b",
         substantive,
         re.IGNORECASE,
@@ -223,8 +242,7 @@ def _ends_with_incomplete_sentence(text: str) -> bool:
     - Ends with unclosed punctuation: ,, ;, :, —, –, -, (, [, {.
     - Ends with split hyphenated word (e.g. re-, sub-).
     - Ends with dangling coordinating conjunction (and, or, but, nor, etc.).
-    Note: Merely lacking a terminal period (e.g. table rows or section titles) is NOT
-    sufficient to trigger successor expansion.
+    Note: Merely lacking a terminal period is NOT sufficient to trigger successor expansion.
     """
     try:
         from CS2_PolicyLens.search import clean_masthead
@@ -254,9 +272,175 @@ def _ends_with_incomplete_sentence(text: str) -> bool:
     return False
 
 
+def extract_target_concepts(query: str) -> list[str]:
+    """
+    Extracts multi-item target concepts (e.g., 'substandard asset', 'doubtful asset', 'loss asset')
+    from regulatory queries. Returns an empty list if query is single-topic.
+    """
+    q_clean = query.strip().rstrip("?.")
+    # Multi-item target inquiry: "definitions of X, Y and Z" or "X, Y and Z under Clause..."
+    m = re.search(
+        r"(?:definitions?|categories|types|classification|conditions?)\s+of\s+(.+?)(?:\s+under\b|\s+in\b|$)",
+        q_clean,
+        re.IGNORECASE,
+    )
+    if m:
+        target_span = m.group(1)
+        items = re.split(r",\s*|\s+and\s+|\s+or\s+", target_span)
+        cleaned = [
+            it.strip().lower()
+            for it in items
+            if len(it.strip()) >= 3 and it.strip().lower() not in {"the", "a", "an", "all", "each", "both", "three"}
+        ]
+        if len(cleaned) >= 2:
+            return cleaned
+
+    # Explicit quotes
+    quotes = re.findall(r"\"([^\"]+)\"", query)
+    if len(quotes) >= 2:
+        return [q.lower().strip() for q in quotes if q.strip()]
+
+    return []
+
+
+def extract_concept_excerpt(concept: str, text: str) -> str:
+    """
+    Extracts the substantive definition or provision sentence/clause for a concept from text.
+    Strips chunk boundary markers and masthead artifacts before extraction.
+    """
+    try:
+        from CS2_PolicyLens.search import clean_masthead
+        cleaned_text = clean_masthead(text)
+    except Exception:
+        cleaned_text = text
+
+    cleaned_text = re.sub(r"\[Chunk:\s*[^\]]+\]", "", cleaned_text)
+    cleaned_text = re.sub(r"\[[a-zA-Z0-9_\-]+(?:\s*>[^\]]+)?\]", "", cleaned_text)
+
+    pat_str = re.escape(concept).replace(r"\-", r"[\-\s]?")
+    if "substandard" in concept:
+        pat_str = r"sub[\-\s]?standard\s+asset"
+    elif "doubtful" in concept:
+        pat_str = r"doubtful\s+asset"
+    elif "loss" in concept:
+        pat_str = r"loss\s+asset"
+
+    m = re.search(pat_str, cleaned_text, re.IGNORECASE)
+    if not m:
+        return ""
+
+    start_pos = m.start()
+    # If preceded by list marker (e.g. (i), (ii), 1., a.), include the marker
+    prefix_m = re.search(r"((?:\([ivx\d]+\)|\b\d+\.|\([a-z]\))\s*)$", cleaned_text[:start_pos], re.IGNORECASE)
+    if prefix_m:
+        start_pos -= len(prefix_m.group(1))
+
+    # Boundary to next clause or section
+    rest = cleaned_text[m.end():]
+    next_clause = re.search(
+        r"(?:\n\s*(?:\([ivx\d]+\)|\b[A-Z]\.|\b\d+\.|\bChapter\b|\bAnnex\b)|\Z)",
+        rest,
+    )
+    if next_clause:
+        end_pos = m.end() + next_clause.start()
+    else:
+        end_pos = min(len(cleaned_text), m.end() + 450)
+
+    excerpt = cleaned_text[start_pos:end_pos].strip()
+    excerpt = re.sub(r"(\.)\s*\d+\s*$", r"\1", excerpt)
+    excerpt = re.sub(r"\s+\d+\s*$", "", excerpt)
+    return re.sub(r"\s+", " ", excerpt)
+
+
+def evaluate_evidence_coverage(
+    query: str,
+    assembled_blocks: Sequence[dict[str, Any]],
+) -> dict[str, Any]:
+    """
+    Evaluates whether the retrieved evidence context provides complete, partial,
+    or insufficient coverage for the query.
+    Returns a structured dictionary with status: 'complete', 'partial', or 'insufficient'.
+    """
+    target_concepts = extract_target_concepts(query)
+
+    if target_concepts:
+        found_concepts: dict[str, dict[str, Any]] = {}
+        missing_concepts: list[str] = []
+
+        for concept in target_concepts:
+            concept_found = False
+            for block in assembled_blocks:
+                full_block_text = block.get("block_text", "")
+                excerpt = extract_concept_excerpt(concept, full_block_text)
+                if excerpt:
+                    found_concepts[concept] = {
+                        "concept": concept,
+                        "excerpt": excerpt,
+                        "document_id": block["document_id"],
+                        "page_number": block["page_number"],
+                        "section_heading": block["section_heading"],
+                        "source_index": block["source_index"],
+                    }
+                    concept_found = True
+                    break
+            if not concept_found:
+                missing_concepts.append(concept)
+
+        if len(found_concepts) == len(target_concepts):
+            status = "complete"
+        elif len(found_concepts) > 0:
+            status = "partial"
+        else:
+            status = "insufficient"
+
+        return {
+            "status": status,
+            "target_concepts": target_concepts,
+            "found_concepts": found_concepts,
+            "missing_concepts": missing_concepts,
+        }
+
+    # Single-topic or general queries:
+    from CS2_PolicyLens.search import extract_salient_terms
+
+    salient_words, phrases, quotes = extract_salient_terms(query)
+    has_strong_evidence = False
+    has_moderate_evidence = False
+
+    for block in assembled_blocks:
+        b_text = f"{block.get('section_heading', '')} {block.get('block_text', '')}".lower()
+        score = block.get("retrieval_score", 0.0) or 0.0
+        phrase_matches = [p for p in phrases if p in b_text]
+        word_matches = [
+            w for w in salient_words
+            if w in b_text or (len(w) > 4 and (w[:4] in b_text or w.rstrip("sed") in b_text))
+        ]
+
+        if (phrase_matches or len(word_matches) >= 2) and score >= 0.35:
+            has_strong_evidence = True
+            break
+        elif (word_matches or phrase_matches) and score >= 0.25:
+            has_moderate_evidence = True
+
+    if has_strong_evidence:
+        status = "complete"
+    elif has_moderate_evidence:
+        status = "partial"
+    else:
+        status = "insufficient"
+
+    return {
+        "status": status,
+        "target_concepts": [],
+        "found_concepts": {},
+        "missing_concepts": [],
+    }
+
+
 class RegulatoryQAEngine:
     """
-    Minimal, robust RAG QA engine grounded in active regulatory vector indices.
+    Robust RAG QA engine grounded in active regulatory vector indices with
+    metadata filtering, adjacent expansion, and honest status semantics.
     """
 
     def __init__(
@@ -294,32 +478,92 @@ class RegulatoryQAEngine:
         max_expanded_hits: int | None = None,
         include_predecessor: bool | None = None,
         include_successor: bool | None = None,
+        metadata_filter: str | dict[str, Any] | None = None,
+        allowed_doc_ids: set[str] | Sequence[str] | None = None,
+        manifest_meta: dict[str, dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """
         Executes end-to-end grounded question answering:
-        1. Retrieve top chunks from active documents (supporting hybrid + Config 4).
-        2. Filter by threshold / evidence presence.
-        3. Formulate grounded prompt (with masthead denoising and adjacent context expansion).
-        4. Call LLM (or execute extractive fallback if offline).
-        5. Return answer with complete source citations.
+        1. Resolve metadata filter (e.g. issuer=RBI) to constrain candidate retrieval.
+        2. Retrieve top chunks strictly from active documents (dense or hybrid + Config 4).
+        3. Formulate grounded prompt with adjacent context expansion and masthead denoising.
+        4. Select contributing evidence blocks, pruning unrelated chunks.
+        5. Evaluate evidence coverage (complete, partial, insufficient).
+        6. Generate answer via injected LLM, Groq API, or structured extractive fallback.
+        7. Return structured answer with exact citations and honest status semantics.
         """
         col = collection_name or self.collection_name
         k = top_k or self.top_k
         threshold = self.min_score_threshold if min_score_threshold is None else min_score_threshold
 
-        # 1. Retrieve strictly from active documents
+        # Guard: empty or whitespace query
+        if not query or not query.strip():
+            return {
+                "question": query,
+                "answer": "The available indexed regulatory documents do not provide sufficient evidence to answer this question. Please verify that the relevant circulars or master directions have been indexed.",
+                "sources": [],
+                "status": "insufficient_context",
+                "llm_used": None,
+                "collection": col,
+                "filter_applied": str(metadata_filter) if metadata_filter else None,
+            }
+
+        # 1. Resolve and enforce metadata filter
+        if allowed_doc_ids is None and metadata_filter is not None:
+            try:
+                allowed_doc_ids = resolve_allowed_document_ids(metadata_filter, manifest_meta)
+            except ValueError as ve:
+                return {
+                    "question": query,
+                    "answer": f"Invalid metadata filter '{metadata_filter}': {ve}",
+                    "sources": [],
+                    "status": "insufficient_evidence",
+                    "llm_used": None,
+                    "collection": col,
+                    "filter_applied": str(metadata_filter),
+                }
+
+        if allowed_doc_ids is not None:
+            allowed_doc_ids = set(allowed_doc_ids)
+            if len(allowed_doc_ids) == 0:
+                return {
+                    "question": query,
+                    "answer": f"The available indexed regulatory documents do not provide sufficient evidence to answer this question. No active documents match filter '{metadata_filter}'.",
+                    "sources": [],
+                    "status": "insufficient_evidence",
+                    "llm_used": None,
+                    "collection": col,
+                    "filter_applied": str(metadata_filter),
+                }
+
+        # 2. Retrieve candidates strictly from active documents
         if use_hybrid and chroma_client is None:
             try:
-                from CS2_PolicyLens.search import apply_lexical_rerank, retrieve_hybrid_candidates
+                from CS2_PolicyLens.search import (
+                    _load_manifest_metadata,
+                    apply_lexical_rerank,
+                    retrieve_hybrid_candidates,
+                )
 
+                if manifest_meta is None:
+                    manifest_meta = _load_manifest_metadata()
+
+                doc_filter = (
+                    build_document_where_clause(allowed_doc_ids)
+                    if allowed_doc_ids is not None
+                    else None
+                )
                 raw_cands, _, _ = retrieve_hybrid_candidates(
                     query=query,
                     collection_name=col,
                     top_k_dense=max(k * 4, 20),
                     top_k_lexical=max(k * 4, 20),
+                    active_doc_filter=doc_filter,
+                    manifest_meta=manifest_meta,
+                    allowed_doc_ids=allowed_doc_ids,
                 )
                 if use_rerank and raw_cands:
-                    reranked = apply_lexical_rerank(raw_cands, query)
+                    reranked = apply_lexical_rerank(raw_cands, query, manifest_meta=manifest_meta)
                     hits = reranked[:k]
                 else:
                     hits = raw_cands[:k]
@@ -332,6 +576,8 @@ class RegulatoryQAEngine:
                     chroma_client=chroma_client,
                     embedding_engine=embedding_engine,
                     registry_db_path=registry_db_path,
+                    allowed_doc_ids=allowed_doc_ids,
+                    metadata_filter=metadata_filter,
                 )
         else:
             hits = query_policy_corpus(
@@ -341,9 +587,15 @@ class RegulatoryQAEngine:
                 chroma_client=chroma_client,
                 embedding_engine=embedding_engine,
                 registry_db_path=registry_db_path,
+                allowed_doc_ids=allowed_doc_ids,
+                metadata_filter=metadata_filter,
             )
 
-        # 2. Check for sufficient context
+        # Invariant check: strictly exclude any non-allowed document
+        if allowed_doc_ids is not None:
+            hits = [h for h in hits if h.get("document_id") in allowed_doc_ids]
+
+        # 3. Check for sufficient context above threshold
         valid_hits = [h for h in hits if (h.get("score") is None or h["score"] >= threshold)]
         if not valid_hits:
             return {
@@ -353,11 +605,12 @@ class RegulatoryQAEngine:
                 "status": "insufficient_context",
                 "llm_used": None,
                 "collection": col,
+                "filter_applied": str(metadata_filter) if metadata_filter else None,
             }
 
-        # 3. Build structured evidence context and citations with bounded adjacent-chunk expansion
+        # 4. Build structured evidence context and citations with bounded adjacent-chunk expansion
         context_parts: list[str] = []
-        sources: list[dict[str, Any]] = []
+        assembled_blocks: list[dict[str, Any]] = []
         consumed_chunk_ids: set[str] = set()
 
         do_expand = self.expand_adjacent if expand_adjacent is None else expand_adjacent
@@ -365,7 +618,6 @@ class RegulatoryQAEngine:
         inc_pred = self.include_predecessor if include_predecessor is None else include_predecessor
         inc_succ = self.include_successor if include_successor is None else include_successor
 
-        # Get Chroma collection handle for neighbor lookups if expansion is requested
         chroma_col = None
         if do_expand:
             try:
@@ -379,7 +631,6 @@ class RegulatoryQAEngine:
         for hit_rank, hit in enumerate(valid_hits, 1):
             chunk_id = hit.get("chunk_id")
             if chunk_id and chunk_id in consumed_chunk_ids:
-                # Already merged into a preceding adjacent-chunk context block
                 continue
 
             doc_id = hit.get("document_id", "Unknown")
@@ -413,25 +664,30 @@ class RegulatoryQAEngine:
             if chunk_id:
                 consumed_chunk_ids.add(chunk_id)
 
-            # Perform selective adjacent expansion for top qualifying hits (bounded by max_expand)
+            # Selective adjacent expansion for top qualifying hits
             if do_expand and chroma_col is not None and (hit_rank <= max_expand):
                 hit_text = hit.get("text", "")
 
-                # 1. Immediate predecessor: fetch only when primary chunk starts with continuation / incomplete sentence
-                if inc_pred and _starts_with_incomplete_sentence(hit_text):
-                    pred = _fetch_adjacent_chunk(chroma_col, hit, direction=-1)
+                # Predecessor expansion
+                sec_head = primary_section.lower()
+                is_continuation = "continuation" in sec_head or "continued" in sec_head
+                if inc_pred and (_starts_with_incomplete_sentence(hit_text) or is_continuation):
+                    pred = _fetch_adjacent_chunk(
+                        chroma_col, hit, direction=-1, allowed_doc_ids=allowed_doc_ids
+                    )
                     if pred and pred["chunk_id"] not in consumed_chunk_ids:
                         block_chunks.append(pred)
                         consumed_chunk_ids.add(pred["chunk_id"])
 
-                # 2. Immediate successor: fetch only when primary chunk genuinely ends with an incomplete sentence
+                # Successor expansion
                 if inc_succ and _ends_with_incomplete_sentence(hit_text):
-                    succ = _fetch_adjacent_chunk(chroma_col, hit, direction=+1)
+                    succ = _fetch_adjacent_chunk(
+                        chroma_col, hit, direction=+1, allowed_doc_ids=allowed_doc_ids
+                    )
                     if succ and succ["chunk_id"] not in consumed_chunk_ids:
                         block_chunks.append(succ)
                         consumed_chunk_ids.add(succ["chunk_id"])
 
-            # 3. Sort constituent chunks strictly in document reading order
             def _safe_chunk_idx(item: dict[str, Any]) -> int:
                 val = item.get("chunk_index")
                 if val is None:
@@ -456,7 +712,6 @@ class RegulatoryQAEngine:
             p_min, p_max = page_numbers[0], page_numbers[-1]
             page_span_str = f"{p_min}-{p_max}" if p_min != p_max else str(p_min)
 
-            # Denoise repetitive regulatory circular running headers
             try:
                 from CS2_PolicyLens.search import clean_masthead
             except Exception:
@@ -481,7 +736,7 @@ class RegulatoryQAEngine:
                 block_body = single_txt
 
             context_parts.append(f"{header}\n{block_body}")
-            sources.append(
+            assembled_blocks.append(
                 {
                     "source_index": source_idx,
                     "document_id": doc_id,
@@ -491,16 +746,24 @@ class RegulatoryQAEngine:
                     "constituent_chunk_ids": constituent_ids,
                     "section_heading": primary_section,
                     "retrieval_score": score,
+                    "block_text": block_body,
+                    "header": header,
                 }
             )
             source_idx += 1
 
+        # 5. Evaluate evidence coverage
+        target_concepts = extract_target_concepts(query)
+        coverage_info = evaluate_evidence_coverage(query, assembled_blocks)
+        cov_status = coverage_info.get("status", "insufficient")
+
         context_str = "\n\n---\n\n".join(context_parts)
         user_prompt = f"Regulatory Evidence Context:\n{context_str}\n\nQuestion: {query}\n\nAnswer:"
 
-        # 4. Generate Answer via LLM or Extractive Fallback
+        # 6. Generate Answer via LLM or Extractive Fallback
         answer: str = ""
         model_used: str = "retrieval_only_fallback"
+        final_status = "success"
 
         if self.llm_client is not None:
             # Custom injected LLM client (e.g. for deterministic mock testing)
@@ -511,15 +774,23 @@ class RegulatoryQAEngine:
             else:
                 raise TypeError("Injected llm_client must implement .generate() or be callable.")
             model_used = getattr(self.llm_client, "model_name", "injected_mock_llm")
+
+            if "do not provide sufficient evidence" in answer or "insufficient evidence" in answer.lower():
+                final_status = "insufficient_evidence"
+            elif target_concepts and cov_status == "partial":
+                final_status = "partial_evidence"
+            else:
+                final_status = "success"
+
         else:
-            # Try Groq API if key is available
             api_key = _load_groq_api_key()
+            llm_success = False
+
             if api_key:
                 try:
                     from groq import Groq
 
                     client = Groq(api_key=api_key)
-                    # Support preferred models with fallbacks for endpoint differences
                     candidate_models = [
                         "qwen/qwen3.8-27b",
                         "openai/gpt-oss-120b",
@@ -536,10 +807,11 @@ class RegulatoryQAEngine:
                                 ],
                                 model=model_name,
                                 temperature=0.0,
-                                max_tokens=600,
+                                max_tokens=650,
                             )
                             answer = response.choices[0].message.content or ""
                             model_used = f"groq/{model_name}"
+                            llm_success = True
                             break
                         except Exception as me:
                             last_error = me
@@ -559,36 +831,134 @@ class RegulatoryQAEngine:
 
                 except Exception as e:
                     logger.warning("Groq API call failed (%s); using extractive fallback.", e)
-                    answer = self._generate_extractive_fallback(valid_hits, sources)
-                    model_used = f"extractive_fallback (error: {e.__class__.__name__})"
+                    llm_success = False
+
+            if llm_success and answer:
+                if "do not provide sufficient evidence" in answer or "insufficient evidence" in answer.lower():
+                    final_status = "insufficient_evidence"
+                elif target_concepts and cov_status == "partial":
+                    final_status = "partial_evidence"
+                else:
+                    final_status = "success"
             else:
-                answer = self._generate_extractive_fallback(valid_hits, sources)
-                model_used = "extractive_retrieval_fallback (no cloud API key)"
+                # Structured Extractive Fallback
+                answer = self._generate_extractive_fallback(
+                    coverage_info=coverage_info,
+                    contributing_blocks=assembled_blocks,
+                    query=query,
+                )
+                if target_concepts:
+                    if cov_status == "complete":
+                        final_status = "success"
+                        model_used = "extractive_retrieval_fallback (offline/complete)"
+                    elif cov_status == "partial":
+                        final_status = "partial_evidence"
+                        model_used = "extractive_retrieval_fallback (offline/partial)"
+                    else:
+                        final_status = "insufficient_evidence"
+                        model_used = "extractive_retrieval_fallback (offline/insufficient)"
+                else:
+                    if cov_status == "complete":
+                        final_status = "success"
+                        model_used = "extractive_retrieval_fallback (offline/complete)"
+                    elif cov_status == "partial":
+                        final_status = "partial_evidence"
+                        model_used = "extractive_retrieval_fallback (offline/partial)"
+                    else:
+                        final_status = "insufficient_evidence"
+                        model_used = "extractive_retrieval_fallback (offline/insufficient)"
+
+        # 7. Clean Source Attribution
+        if final_status == "insufficient_evidence" and cov_status == "insufficient":
+            clean_sources = []
+        else:
+            clean_sources = []
+            for idx, src in enumerate(assembled_blocks, 1):
+                clean_sources.append(
+                    {
+                        "source_index": idx,
+                        "document_id": src["document_id"],
+                        "page_number": src["page_number"],
+                        "page_numbers": src["page_numbers"],
+                        "chunk_id": src["chunk_id"],
+                        "constituent_chunk_ids": src["constituent_chunk_ids"],
+                        "section_heading": src["section_heading"],
+                        "retrieval_score": src["retrieval_score"],
+                    }
+                )
 
         return {
             "question": query,
             "answer": answer.strip(),
-            "sources": sources,
-            "status": "success",
+            "sources": clean_sources,
+            "status": final_status,
             "llm_used": model_used,
             "collection": col,
+            "filter_applied": str(metadata_filter) if metadata_filter else None,
         }
 
     @staticmethod
     def _generate_extractive_fallback(
-        hits: Sequence[dict[str, Any]], sources: Sequence[dict[str, Any]]
+        coverage_info: dict[str, Any],
+        contributing_blocks: Sequence[dict[str, Any]],
+        query: str,
     ) -> str:
-        """Constructs an honest, grounded extractive summary when no LLM API is available."""
+        """Constructs an honest, structured extractive summary grounded strictly in evidence."""
+        status = coverage_info.get("status", "insufficient")
+        target_concepts = coverage_info.get("target_concepts", [])
+        found_concepts = coverage_info.get("found_concepts", {})
+        missing_concepts = coverage_info.get("missing_concepts", [])
+
+        # 1. Multi-concept queries (e.g. Clause 10 definitions)
+        if target_concepts:
+            lines = [
+                "Extractive Regulatory Fallback (LLM API offline/unconfigured):",
+                "The following regulatory provisions were extracted from verified active indices:",
+                "",
+            ]
+            for concept in target_concepts:
+                if concept in found_concepts:
+                    info = found_concepts[concept]
+                    lines.append(f"• {concept.title()}:")
+                    lines.append(f"  \"{info['excerpt']}\"")
+                    lines.append(
+                        f"  [Source: {info['document_id']} | Page {info['page_number']} | Section: {info['section_heading']}]"
+                    )
+                    lines.append("")
+
+            if missing_concepts:
+                lines.append("[Unverified / Missing in Retrieved Context]:")
+                for mc in missing_concepts:
+                    lines.append(f"• {mc.title()}: Specific definition was not located in the retrieved page span.")
+                lines.append("")
+
+            return "\n".join(lines).strip()
+
+        # 2. Single-topic or provision queries (e.g. Clause 8, pension compensation)
+        if status == "insufficient" or not contributing_blocks:
+            return (
+                "The available indexed regulatory documents do not provide sufficient evidence to answer this question. "
+                "Please verify that the relevant circulars or master directions have been indexed."
+            )
+
         lines = [
             "Extractive Regulatory Fallback (LLM API offline/unconfigured):",
             "Relevant regulatory provisions retrieved from active verified indices:",
             "",
         ]
-        for idx, (hit, src) in enumerate(zip(hits[:3], sources[:3]), 1):
-            excerpt = hit.get("text", "").replace("\n", " ")
-            if len(excerpt) > 280:
-                excerpt = excerpt[:280] + "..."
+        for idx, block in enumerate(contributing_blocks[:2], 1):
+            text_body = block.get("block_text", "").strip()
+            # Clean section breadcrumbs
+            cleaned_lines = [l for l in text_body.split("\n") if l.strip() and not l.startswith("[")]
+            excerpt = " ".join(cleaned_lines)
+            if len(excerpt) > 450:
+                excerpt = excerpt[:447] + "..."
             lines.append(
-                f"{idx}. [{src['document_id']} | Page {src['page_number']} | {src['section_heading']}]:\n   \"{excerpt}\""
+                f"{idx}. [{block['document_id']} | Page {block['page_number']} | {block['section_heading']}]:\n   \"{excerpt}\""
             )
-        return "\n".join(lines)
+            lines.append("")
+
+        if status == "partial":
+            lines.append("[Note: Context provides partial evidence for this inquiry; secondary conditions may be unverified.]")
+
+        return "\n".join(lines).strip()

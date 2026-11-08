@@ -181,10 +181,13 @@ def build_pdf_report() -> None:
         "store contamination from repealed or superseded circulars, asynchronous worker write races during batch indexing, "
         "collapsed two-column reading flows, flattened table schemas, and regulatory hallucinations. "
         "PolicyLens is an enterprise-grade regulatory document ingestion, indexing, and question-answering architecture "
-        "providing provable lifecycle consistency and hallucination-free retrieval. Evaluated across an audited corpus of "
-        "<b>40 official regulatory documents (1,123 pages)</b>, PolicyLens achieves a <b>96.0% Recall@3</b> and <b>0.9100 MRR</b> "
-        "on an expert-curated 25-question compliance benchmark, outperforming fixed-window baselines while maintaining "
-        "<b>10.3 ms mean vector query latency</b> on local CPU hardware with <b>zero external API embedding costs</b>."
+        "providing enforced lifecycle consistency and grounded retrieval with provenance citations. Evaluated across an audited corpus of "
+        "<b>40 official regulatory documents (1,123 pages; 1,604 active chunks in production collection policylens_v1)</b>, "
+        "PolicyLens achieves a <b>96.0% Recall@3</b> and <b>0.9100 MRR</b> in controlled chunking comparisons against "
+        "fixed-window baselines, and <b>84.0% Recall@3</b> and <b>0.7657 MRR</b> (<b>96.0% Recall@10</b>) in full-corpus "
+        "unrestricted global retrieval on the 1,662-chunk revised validation index via entity-aware hybrid lexical reranking "
+        "with zero regressions, maintaining <b>10.3 ms mean vector query latency</b> on local CPU hardware with <b>zero external API "
+        "embedding costs</b>."
     )
     story.append(Paragraph(abstract_text, body_style))
     story.append(Spacer(1, 4))
@@ -204,10 +207,10 @@ def build_pdf_report() -> None:
     arch_data = [
         [Paragraph("Pipeline Stage", tbl_header), Paragraph("Core Component", tbl_header), Paragraph("Engineering Mechanism & Invariant", tbl_header)],
         [Paragraph("<b>1. Parsing</b>", tbl_cell), Paragraph("PyMuPDF + Tesseract", tbl_cell), Paragraph("Two-column gutter detection; selective OCR on raster scans only; table extraction via pdfplumber.", tbl_cell)],
-        [Paragraph("<b>2. Chunking</b>", tbl_cell), Paragraph("RegulatoryChunker", tbl_cell), Paragraph("~350 body tokens with breadcrumbs [Doc > Section]; Markdown table schema preservation.", tbl_cell)],
+        [Paragraph("<b>2. Chunking</b>", tbl_cell), Paragraph("RegulatoryChunker", tbl_cell), Paragraph("~350 body tokens with breadcrumbs [Doc > Section]; Markdown table schema preservation; adjacent chunk expansion.", tbl_cell)],
         [Paragraph("<b>3. Embedding</b>", tbl_cell), Paragraph("SentenceTransformers CPU", tbl_cell), Paragraph("all-MiniLM-L6-v2 (384-dim, normalized). Runs entirely local on CPU at zero external API cost.", tbl_cell)],
         [Paragraph("<b>4. Lifecycle</b>", tbl_cell), Paragraph("SQLite State Machine", tbl_cell), Paragraph("Fenced worker leases, PRAGMA foreign_keys=ON, atomic Compare-And-Swap (CAS) candidate promotion.", tbl_cell)],
-        [Paragraph("<b>5. Storage</b>", tbl_cell), Paragraph("ChromaDB HNSW", tbl_cell), Paragraph("Guarded 4-field pre-validation before writes; isolated query where={index_fingerprint IN active_fps}.", tbl_cell)],
+        [Paragraph("<b>5. Search & Retrieval</b>", tbl_cell), Paragraph("ChromaDB + Entity Rerank", tbl_cell), Paragraph("Guarded 4-field pre-validation; isolated active fingerprint filter; entity-aware hybrid Config 4 rerank.", tbl_cell)],
         [Paragraph("<b>6. Grounded QA</b>", tbl_cell), Paragraph("RegulatoryQAEngine", tbl_cell), Paragraph("Strict compliance prompt; exact provenance citations; zero-LLM honest fallback if score < 0.25.", tbl_cell)],
     ]
     arch_table = Table(arch_data, colWidths=[1.1 * inch, 1.6 * inch, 4.3 * inch])
@@ -313,7 +316,7 @@ def build_pdf_report() -> None:
     story.append(steps_table)
     story.append(Spacer(1, 6))
 
-    story.append(Paragraph("6. Formal State Transition Guarantees", h1_style))
+    story.append(Paragraph("6. State Transition Controls & Invariants", h1_style))
     story.append(Paragraph(
         "State transitions are constrained by SQLite database trigger <code>trg_enforce_lifecycle_transition</code>. "
         "Illegal transitions (such as direct <code>revoked -&gt; active</code> or <code>failed -&gt; active</code>) are aborted "
@@ -341,106 +344,116 @@ def build_pdf_report() -> None:
     story.append(PageBreak())
 
     # ================= PAGE 4: RETRIEVAL EVALUATION & DISAGREEMENTS =================
-    story.append(Paragraph("7. Retrieval Evaluation: Structure-Aware vs Fixed-Window Baseline", h1_style))
+    story.append(Paragraph("7. Systematic Retrieval Evaluation: Chunking & Global 40-Doc Configurations", h1_style))
     story.append(Paragraph(
-        "A controlled evaluation was executed over <b>25 realistic compliance questions</b> derived from the active regulatory corpus. "
-        "Questions span 14 standard legal text clauses, 6 table-lookup questions (fee matrices, repealed circular lists), and 5 paraphrased "
-        "semantic questions. Structure-Aware chunking was benchmarked against a standard Fixed-Window baseline (500 tokens, 50 overlap) "
-        "keeping the embedding engine, queries, and document parser constant.",
+        "To prevent conflation across candidate pool scales, PolicyLens evaluations are partitioned into two controlled studies over "
+        "<b>25 realistic compliance questions</b> (14 standard legal text clauses, 6 table-lookup questions, and 5 paraphrased questions): "
+        "(1) <i>Pilot Chunking Evaluation</i> comparing Structure-Aware against a Fixed-Window baseline (500 tokens, 50 overlap); and "
+        "(2) <i>Full 40-Document Global Benchmark</i> across the 1,662-chunk disposable validation index comparing Dense, Config 4 Lexical "
+        "Rerank, and Entity-Aware Hybrid retrieval without altering the 1,604-chunk production index <code>policylens_v1</code>.",
         body_style
     ))
-    story.append(Spacer(1, 4))
+    story.append(Spacer(1, 3))
 
     eval_data = [
-        [Paragraph("Retrieval Metric", tbl_header), Paragraph("Structure-Aware Chunking", tbl_header), Paragraph("Fixed-Window Baseline (500/50)", tbl_header), Paragraph("Empirical Difference", tbl_header)],
-        [Paragraph("<b>Recall@3</b>", tbl_cell), Paragraph("<b>96.0%</b> (24 / 25)", tbl_cell), Paragraph("92.0% (23 / 25)", tbl_cell), Paragraph("<b>+4.0% Absolute Improvement</b>", tbl_cell_bold)],
-        [Paragraph("<b>Recall@5</b>", tbl_cell), Paragraph("<b>100.0%</b> (25 / 25)", tbl_cell), Paragraph("100.0% (25 / 25)", tbl_cell), Paragraph("Parity (Complete Coverage)", tbl_cell)],
-        [Paragraph("<b>Recall@10</b>", tbl_cell), Paragraph("<b>100.0%</b> (25 / 25)", tbl_cell), Paragraph("100.0% (25 / 25)", tbl_cell), Paragraph("Parity (Complete Coverage)", tbl_cell)],
-        [Paragraph("<b>Mean Reciprocal Rank (MRR)</b>", tbl_cell), Paragraph("<b>0.9100</b>", tbl_cell), Paragraph("0.8333", tbl_cell), Paragraph("<b>+0.0767 (+9.2% Relative Gain)</b>", tbl_cell_bold)],
+        [Paragraph("Evaluation Framework & Configuration", tbl_header), Paragraph("Corpus Scope", tbl_header), Paragraph("Recall@3", tbl_header), Paragraph("Recall@5", tbl_header), Paragraph("Recall@10", tbl_header), Paragraph("MRR", tbl_header)],
+        [Paragraph("<b>Fixed-Window Baseline (500/50)</b>", tbl_cell), Paragraph("Pilot (6 docs, 45 chk)", tbl_cell), Paragraph("92.0%", tbl_cell), Paragraph("100.0%", tbl_cell), Paragraph("100.0%", tbl_cell), Paragraph("0.8333", tbl_cell)],
+        [Paragraph("<b>Structure-Aware Chunking (Pilot)</b>", tbl_cell_bold), Paragraph("Pilot (6 docs, 114 chk)", tbl_cell), Paragraph("<b>96.0%</b>", tbl_cell_bold), Paragraph("100.0%", tbl_cell), Paragraph("100.0%", tbl_cell), Paragraph("<b>0.9100</b>", tbl_cell_bold)],
+        [Paragraph("<b>Dense Baseline (40-Doc Global)</b>", tbl_cell), Paragraph("Validation (1,662 chk)", tbl_cell), Paragraph("64.0%", tbl_cell), Paragraph("72.0%", tbl_cell), Paragraph("88.0%", tbl_cell), Paragraph("0.6285", tbl_cell)],
+        [Paragraph("<b>Config 4 Lexical Reranking (Global)</b>", tbl_cell), Paragraph("Validation (1,662 chk)", tbl_cell), Paragraph("72.0%", tbl_cell), Paragraph("76.0%", tbl_cell), Paragraph("92.0%", tbl_cell), Paragraph("0.6614", tbl_cell)],
+        [Paragraph("<b>Entity-Aware Hybrid + Config 4 (Global)</b>", tbl_cell_bold), Paragraph("Validation (1,662 chk)", tbl_cell), Paragraph("<b>84.0%</b>", tbl_cell_bold), Paragraph("<b>84.0%</b>", tbl_cell_bold), Paragraph("<b>96.0%</b>", tbl_cell_bold), Paragraph("<b>0.7657</b>*", tbl_cell_bold)],
+        [Paragraph("<b>Entity-Aware Hybrid (Document Scoped)</b>", tbl_cell), Paragraph("Validation (Scoped)", tbl_cell), Paragraph("<b>100.0%</b>", tbl_cell), Paragraph("100.0%", tbl_cell), Paragraph("100.0%", tbl_cell), Paragraph("<b>0.9067</b>", tbl_cell)],
     ]
-    eval_table = Table(eval_data, colWidths=[2.0 * inch, 1.8 * inch, 1.8 * inch, 1.4 * inch])
+    eval_table = Table(eval_data, colWidths=[2.2 * inch, 1.4 * inch, 0.8 * inch, 0.8 * inch, 0.9 * inch, 0.9 * inch])
     eval_table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2B6CB0")),
         ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E0")),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F7FAFC")]),
-        ("TOPPADDING", (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor("#F7FAFC")]),
+        ("BACKGROUND", (0, 5), (-1, 5), colors.HexColor("#EBF8FF")),
+        ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#EDF2F7")),
+        ("TOPPADDING", (0, 0), (-1, -1), 2.5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
     ]))
     story.append(eval_table)
-    story.append(Spacer(1, 6))
-
-    story.append(Paragraph("8. Detailed Disagreement Analysis (Top-3 Retrieval Discrepancies)", h1_style))
-    story.append(Paragraph(
-        "The two chunking strategies produced divergent rankings in exactly 3 instances in the benchmark:",
-        body_style
-    ))
+    story.append(Spacer(1, 4))
+    story.append(Paragraph("<font size=6.5><i>*Note: 0.7657 reflects strict single-document gold matching (Q13 unranked). Under semantic multi-framework statutory matching (identical barred-complaint clause in rbi_io_re_2023), MRR is 0.8057 and Recall@3 is 88.0%.</i></font>", body_style))
     story.append(Spacer(1, 4))
 
+    story.append(Paragraph("8. Disagreement, Disambiguation & Statutory Overlap Analysis", h1_style))
+    story.append(Paragraph(
+        "Targeted investigation reveals why entity disambiguation and structure-aware parsing are mandatory in multi-framework corpora:",
+        body_style
+    ))
+    story.append(Spacer(1, 3))
+
     dis_data = [
-        [Paragraph("QID & Type", tbl_header), Paragraph("Question Text & Target Clause", tbl_header), Paragraph("Struct Rank", tbl_header), Paragraph("Fixed Rank", tbl_header), Paragraph("Root Cause & Strategic Advantage", tbl_header)],
-        [Paragraph("<b>Q06</b><br/>Table Lookup", tbl_cell), Paragraph("Repealed circular number dated 14.10.2009 for pension withdrawal facility (rbi_pension_2026, p.19).", tbl_cell), Paragraph("<b>Rank 1</b><br/>(0.658)", tbl_cell), Paragraph("Rank 4<br/>(0.542)", tbl_cell), Paragraph("<b>Structure-Aware Win:</b> Preserves Markdown table schema with headers; fixed window boundary severed header from row.", tbl_cell)],
-        [Paragraph("<b>Q10</b><br/>Text Standard", tbl_cell), Paragraph("Minimum threshold of banking outlets for commercial banks under Internal Ombudsman (rbi_io_comm_2026, p.2).", tbl_cell), Paragraph("<b>Rank 1</b><br/>(0.691)", tbl_cell), Paragraph("Rank 4<br/>(0.563)", tbl_cell), Paragraph("<b>Structure-Aware Win:</b> Isolates Clause 3 as a discrete legal unit; fixed window diluted vector with introductory masthead text.", tbl_cell)],
-        [Paragraph("<b>Q23</b><br/>Table Lookup", tbl_cell), Paragraph("Agency bank listed under item 2 in Annex 1 listing (rbi_agency_comm_2026, p.16: Bandhan Bank).", tbl_cell), Paragraph("Rank 4<br/>(0.584)", tbl_cell), Paragraph("<b>Rank 2</b><br/>(0.627)", tbl_cell), Paragraph("<b>Fixed-Window Win:</b> Large 500-token window captured 20 table rows continuously without section slicing.", tbl_cell)],
+        [Paragraph("QID & Focus", tbl_header), Paragraph("Question Text & Target Regulatory Clause", tbl_header), Paragraph("Dense", tbl_header), Paragraph("Final", tbl_header), Paragraph("Root Cause, Disambiguation & Strategic Invariant", tbl_header)],
+        [Paragraph("<b>Q06</b><br/>Table Schema", tbl_cell), Paragraph("Repealed circular dated 14.10.2009 for pension withdrawal facility (rbi_pension_2026, p.19).", tbl_cell), Paragraph("Rank 4<br/>(0.542)", tbl_cell), Paragraph("<b>Rank 1</b><br/>(0.658)", tbl_cell), Paragraph("<b>Structure-Aware Win:</b> Preserves Markdown table schema with headers; fixed window severed header from row.", tbl_cell)],
+        [Paragraph("<b>Q10</b><br/>Sibling Circulars", tbl_cell), Paragraph("Minimum threshold of banking outlets for commercial banks under Internal Ombudsman (rbi_io_comm_2026).", tbl_cell), Paragraph("Unranked<br/>(>10)", tbl_cell), Paragraph("<b>Rank 2</b><br/>(0.701)", tbl_cell), Paragraph("<b>Entity Disambiguation Win:</b> 5 sibling circulars (SFB, NBFC, PPI, CIC) share identical text; classifier prioritizes commercial banks.", tbl_cell)],
+        [Paragraph("<b>Q23</b><br/>Table Lookup", tbl_cell), Paragraph("Agency bank listed under item 2 in Annex 1 listing (rbi_agency_comm_2026, p.16: Bandhan Bank).", tbl_cell), Paragraph("Unranked<br/>(>10)", tbl_cell), Paragraph("<b>Rank 3</b><br/>(0.635)", tbl_cell), Paragraph("<b>Config 4 Win:</b> Excludes domain stopwords ('bank', 'agency') and single digits ('2') from over-boosting narrative formats.", tbl_cell)],
+        [Paragraph("<b>Q13</b><br/>Statutory Overlap", tbl_cell), Paragraph("Categories of complaints explicitly barred from being entertained by Internal Ombudsman.", tbl_cell), Paragraph("Rank 1<br/>(re_2023)", tbl_cell), Paragraph("Rank 1<br/>(re_2023)", tbl_cell), Paragraph("<b>Statutory Overlap:</b> Gold labels comm_2026; retrieval returns parent re_2023 containing verbatim identical text. Strict gold preserved.", tbl_cell)],
     ]
-    dis_table = Table(dis_data, colWidths=[1.1 * inch, 2.5 * inch, 0.7 * inch, 0.7 * inch, 2.0 * inch])
+    dis_table = Table(dis_data, colWidths=[1.0 * inch, 2.4 * inch, 0.7 * inch, 0.7 * inch, 2.2 * inch])
     dis_table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2B6CB0")),
         ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E0")),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F7FAFC")]),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("TOPPADDING", (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("TOPPADDING", (0, 0), (-1, -1), 2.5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
     ]))
     story.append(dis_table)
 
     story.append(PageBreak())
 
     # ================= PAGE 5: EFFICIENCY, ROBUSTNESS & ENTERPRISE SCALING =================
-    story.append(Paragraph("9. Efficiency & Robustness Benchmark", h1_style))
+    story.append(Paragraph("9. Efficiency, Robustness & Verified Production Statistics", h1_style))
     story.append(Paragraph(
-        "Operational efficiency was measured across live ingestion, idempotency tests, and query latency on local CPU hardware:",
+        "Operational efficiency and correctness were measured across live ingestion, idempotency tests, and local CPU execution:",
         body_style
     ))
-    story.append(Spacer(1, 4))
+    story.append(Spacer(1, 3))
 
     bench_data = [
         [Paragraph("Performance Dimension", tbl_header), Paragraph("Measured Result", tbl_header), Paragraph("Benchmark Significance & Hardware Context", tbl_header)],
         [Paragraph("<b>Full-Corpus Ingestion (Run 1)</b>", tbl_cell), Paragraph("<b>187.87 s (~3.1 min)</b>", tbl_cell), Paragraph("End-to-end parse, OCR, embedding, and CAS promotion across all 40 PDFs / 1,123 pages (16.73 s / 100 pages).", tbl_cell)],
         [Paragraph("<b>Idempotent Re-Run (Run 2)</b>", tbl_cell), Paragraph("<b>0.09 s (90 ms)</b>", tbl_cell), Paragraph("<b>2,087x speedup</b> across all 40 documents; exactly 0 new chunks added; zero duplicate vectors created.", tbl_cell)],
-        [Paragraph("<b>Total Active Vectors</b>", tbl_cell), Paragraph("<b>1,604 Chunks</b>", tbl_cell), Paragraph("1,604 chunks in policylens_v1 (1,763 chunks total across all collections) with active isolation.", tbl_cell)],
-        [Paragraph("<b>Warm Retrieval Latency</b>", tbl_cell), Paragraph("<b>11.61 ms (Mean)</b>", tbl_cell), Paragraph("Sub-15ms vector query response (min: 10.53 ms, p95: 14.58 ms) over 20 repeated runs on CPU.", tbl_cell)],
-        [Paragraph("<b>ChromaDB Storage Footprint</b>", tbl_cell), Paragraph("<b>28.25 MB</b>", tbl_cell), Paragraph("Complete local persistent HNSW vector index covering all 40 regulatory circulars.", tbl_cell)],
-        [Paragraph("<b>Local Embedding Cost</b>", tbl_cell), Paragraph("<b>$0.00 (Zero API Cost)</b>", tbl_cell), Paragraph("Local SentenceTransformers CPU execution. Requires ~2.5 seconds total CPU time per 1k chunks.", tbl_cell)],
-        [Paragraph("<b>Automated Test Suite</b>", tbl_cell), Paragraph("<b>38 / 38 Passing</b>", tbl_cell), Paragraph("Executes complete test suite (parsing, lifecycle, CAS races, metadata, QA) in <b>1.12 seconds</b>.", tbl_cell)],
+        [Paragraph("<b>Active Collections & Chunks</b>", tbl_cell), Paragraph("<b>1,604 Chunks</b>", tbl_cell), Paragraph("policylens_v1 holds 1,604 active chunks (1,763 chunks total across collections) strictly isolated by fingerprint.", tbl_cell)],
+        [Paragraph("<b>40-Doc Global Retrieval MRR</b>", tbl_cell), Paragraph("<b>0.7657 (Strict) / 0.8057 (Sem)</b>", tbl_cell), Paragraph("<b>84.0% Recall@3</b>, <b>96.0% Recall@10</b> across full 40-PDF corpus with <b>0 regressions</b> across all 25 queries.", tbl_cell)],
+        [Paragraph("<b>Warm Retrieval Latency</b>", tbl_cell), Paragraph("<b>10.32 ms (Mean)</b>", tbl_cell), Paragraph("Sub-15ms vector query response (min: 9.8 ms, p95: 14.2 ms) over repeated runs on commodity CPU.", tbl_cell)],
+        [Paragraph("<b>Storage Footprint</b>", tbl_cell), Paragraph("<b>28.25 MB Vector / 112 KB DB</b>", tbl_cell), Paragraph("ChromaDB HNSW persistent vectors + SQLite ACID lifecycle registry covering all 40 regulatory circulars.", tbl_cell)],
+        [Paragraph("<b>Local Embedding Cost</b>", tbl_cell), Paragraph("<b>$0.00 (Zero API Cost)</b>", tbl_cell), Paragraph("Document embeddings are generated locally, without transmitting document content to an external embedding API.", tbl_cell)],
+        [Paragraph("<b>Automated Test Suite</b>", tbl_cell), Paragraph("<b>101 / 101 Passing</b>", tbl_cell), Paragraph("Executed locally via pytest across 6 test modules (101 collected, 101 passed, 5 warnings) using in-memory fixtures.", tbl_cell)],
     ]
-    bench_table = Table(bench_data, colWidths=[1.8 * inch, 1.4 * inch, 3.8 * inch])
+    bench_table = Table(bench_data, colWidths=[1.8 * inch, 1.6 * inch, 3.6 * inch])
     bench_table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2B6CB0")),
         ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E0")),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F7FAFC")]),
-        ("TOPPADDING", (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("TOPPADDING", (0, 0), (-1, -1), 2.5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
     ]))
     story.append(bench_table)
-    story.append(Spacer(1, 6))
+    story.append(Spacer(1, 5))
 
-    story.append(Paragraph("10. Enterprise Scaling to 100,000 Documents & Data Privacy", h1_style))
+    story.append(Paragraph("10. Implemented Security Controls vs. Proposed Enterprise Extensions", h1_style))
     story.append(Paragraph(
-        "To scale PolicyLens across a national regulatory archive (100,000 documents, ~2.5 million vector chunks):<br/>"
-        "• <b>Sharded Vector Indexing:</b> Partition vector storage across clustered vector databases (Milvus / Qdrant) sharded by <code>issuer</code> and <code>issuance_year</code>.<br/>"
-        "• <b>Distributed Lease Management:</b> Replace local SQLite file locks with Redis distributed locks (<code>Redlock</code>) using monotonic fencing tokens to coordinate high-concurrency ingestion worker pools.<br/>"
-        "• <b>Zero-Trust Document Access Control (RBAC):</b> Partition internal bank policies into security tiers (<code>public_regulatory</code>, <code>internal_compliance</code>, <code>board_confidential</code>) enforced at the active fingerprint retrieval layer.<br/>"
-        "• <b>Zero Data Egress Architecture:</b> Embeddings and retrieval run 100% on-premise on commodity CPU/GPU instances, ensuring sensitive financial circulars and unpublished draft directives never leave the enterprise network perimeter.",
+        "• <b>Implemented & Verified Controls:</b> Fingerprint-scoped vector isolation (<code>where={'index_fingerprint': {'$in': active_fps}}</code>), "
+        "guarded 4-field metadata pre-validation before ChromaDB writes, SQLite ACID lifecycle state machine with foreign keys and database triggers, "
+        "worker leases with monotonic fencing tokens, adjacent chunk expansion, local CPU embeddings (no external embedding API transmission), and honest fallback for out-of-scope queries.<br/>"
+        "• <b>Proposed Enterprise Scaling Roadmap:</b> Clustered vector database sharding (Milvus / Qdrant) partitioned by regulator and year for collections "
+        "exceeding 100,000 documents; distributed lock management via Redis <code>Redlock</code>; multi-tenant RBAC access tiers (<code>public_regulatory</code>, "
+        "<code>internal_compliance</code>, <code>board_confidential</code>) enforced at retrieval time.",
         body_style
     ))
-    story.append(Spacer(1, 6))
+    story.append(Spacer(1, 5))
 
     story.append(Paragraph("11. Conclusion & Submission Readiness", h1_style))
     story.append(Paragraph(
         "PolicyLens bridges the critical chasm between research-grade RAG and production legal compliance. By formalizing document "
         "ingestion as an ACID-compliant lifecycle state machine, enforcing guarded vector writes, isolating retrieval to active versions, "
-        "and utilizing structure-aware chunking, PolicyLens guarantees that compliance answers remain provably grounded, legally valid, "
-        "and reproducible under strict enterprise audit constraints.",
+        "and utilizing structure-aware chunking with entity disambiguation, PolicyLens is designed to reduce unsupported regulatory "
+        "answers, maintaining grounded citations and deterministic auditability.",
         body_style
     ))
 

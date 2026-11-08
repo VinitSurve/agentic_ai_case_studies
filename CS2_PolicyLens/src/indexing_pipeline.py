@@ -274,6 +274,122 @@ def index_pdf_document(
         raise
 
 
+# =============================================================================
+# Shared Metadata & Document Filtering Helpers
+# =============================================================================
+
+SUPPORTED_FILTER_KEYS = {"issuer", "document_id", "doc_id"}
+
+
+def parse_filter_expression(filter_expr: str | dict[str, Any] | None) -> dict[str, str] | None:
+    """
+    Parses a filter argument (e.g. 'issuer=RBI' or {'issuer': 'RBI'}) into a normalized dict.
+    Validates that the key is in SUPPORTED_FILTER_KEYS.
+    Raises ValueError for invalid syntax or unsupported keys.
+    """
+    if not filter_expr:
+        return None
+    if isinstance(filter_expr, dict):
+        normalized: dict[str, str] = {}
+        for k, v in filter_expr.items():
+            k_clean = str(k).strip().lower()
+            if k_clean not in SUPPORTED_FILTER_KEYS:
+                raise ValueError(
+                    f"Unsupported filter key '{k}'. Supported filter keys: {sorted(list(SUPPORTED_FILTER_KEYS))}"
+                )
+            normalized[k_clean] = str(v).strip().lower()
+        return normalized
+    if isinstance(filter_expr, str):
+        if "=" not in filter_expr:
+            raise ValueError(f"Invalid filter format '{filter_expr}'. Expected 'key=value', e.g. 'issuer=RBI'.")
+        k, v = filter_expr.split("=", 1)
+        k_clean = k.strip().lower()
+        if k_clean not in SUPPORTED_FILTER_KEYS:
+            raise ValueError(
+                f"Unsupported filter key '{k.strip()}'. Supported filter keys: {sorted(list(SUPPORTED_FILTER_KEYS))}"
+            )
+        return {k_clean: v.strip().lower()}
+    raise TypeError(f"filter_expr must be str, dict, or None, got {type(filter_expr).__name__}")
+
+
+def resolve_allowed_document_ids(
+    filter_expr: str | dict[str, Any] | None,
+    manifest_meta: dict[str, dict[str, Any]] | None = None,
+) -> set[str] | None:
+    """
+    Resolves a metadata filter into a set of allowed document IDs.
+    Returns:
+      - None if filter_expr is None (unconstrained).
+      - set[str] of matching document IDs.
+    Raises ValueError for unsupported filter keys or malformed syntax.
+    """
+    if not filter_expr:
+        return None
+
+    parsed = parse_filter_expression(filter_expr)
+    if not parsed:
+        return None
+
+    # Load manifest metadata if not provided
+    if manifest_meta is None:
+        from CS2_PolicyLens.search import _load_manifest_metadata
+        manifest_meta = _load_manifest_metadata()
+
+    allowed: set[str] = set()
+
+    # Apply issuer filter
+    if "issuer" in parsed:
+        target_issuer = parsed["issuer"].strip().lower()
+        prefix = f"{target_issuer}_"
+        for did, meta in manifest_meta.items():
+            issuer_field = (meta.get("issuer") or "").lower()
+            # 1. Exact or substring match in issuer field
+            if target_issuer in issuer_field:
+                allowed.add(did)
+            # 2. Document ID prefix shorthand (rbi_, sebi_, dfs_, irdai_)
+            elif did.lower().startswith(prefix):
+                allowed.add(did)
+            # 3. Known acronym mapping
+            elif target_issuer == "rbi" and "reserve bank of india" in issuer_field:
+                allowed.add(did)
+            elif target_issuer == "sebi" and "securities and exchange board of india" in issuer_field:
+                allowed.add(did)
+            elif target_issuer == "irdai" and "insurance regulatory and development authority" in issuer_field:
+                allowed.add(did)
+            elif target_issuer == "dfs" and ("department of financial services" in issuer_field or "ministry of finance" in issuer_field):
+                allowed.add(did)
+
+    # Apply document_id / doc_id filter
+    doc_id_val = parsed.get("document_id") or parsed.get("doc_id")
+    if doc_id_val:
+        target_did = doc_id_val.strip().lower()
+        doc_matches = {did for did in manifest_meta if did.lower() == target_did}
+        if "issuer" in parsed:
+            allowed = allowed.intersection(doc_matches)
+        else:
+            allowed = doc_matches
+
+    return allowed
+
+
+def build_document_where_clause(
+    allowed_doc_ids: set[str] | Sequence[str] | None,
+) -> dict[str, Any] | None:
+    """
+    Builds a ChromaDB-compliant where clause dict for filtering by allowed document IDs.
+    Returns None if allowed_doc_ids is None.
+    Returns a condition matching 0 documents if allowed_doc_ids is empty.
+    """
+    if allowed_doc_ids is None:
+        return None
+    ids_list = sorted(list(allowed_doc_ids))
+    if not ids_list:
+        return {"document_id": "__NO_MATCHING_DOCUMENTS__"}
+    if len(ids_list) == 1:
+        return {"document_id": ids_list[0]}
+    return {"document_id": {"$in": ids_list}}
+
+
 def query_policy_corpus(
     query: str,
     collection_name: str = "policylens_structure",
@@ -281,12 +397,23 @@ def query_policy_corpus(
     chroma_client: Any | None = None,
     embedding_engine: Any | None = None,
     registry_db_path: str | Path | None = None,
+    metadata_filter: str | dict[str, Any] | None = None,
+    allowed_doc_ids: set[str] | Sequence[str] | None = None,
 ) -> list[dict[str, Any]]:
     """
-    Queries indexed policies strictly through active registry fingerprints.
+    Queries indexed policies strictly through active registry fingerprints,
+    with optional metadata/document filtering.
     """
     db_file = registry_db_path or config.REGISTRY_DB_PATH
     if not Path(db_file).is_file():
+        return []
+
+    # Resolve allowed document IDs if filter is passed
+    if allowed_doc_ids is None and metadata_filter is not None:
+        allowed_doc_ids = resolve_allowed_document_ids(metadata_filter)
+
+    # If filter was specified but matched 0 documents, return empty immediately
+    if allowed_doc_ids is not None and len(allowed_doc_ids) == 0:
         return []
 
     conn = get_database_connection(db_file)
@@ -299,17 +426,21 @@ def query_policy_corpus(
     # 2. Get Chroma Collection
     chroma_col = get_chroma_collection(collection_name, chroma_client)
 
-    # 3. Retrieve active corpus
+    # 3. Build where_additional filter if constrained
+    where_additional = build_document_where_clause(allowed_doc_ids) if allowed_doc_ids is not None else None
+
+    # 4. Retrieve active corpus
     raw_results = retrieve_active_corpus(
         db_conn=conn,
         chroma_collection=chroma_col,
         collection_name=collection_name,
         query_embeddings=query_embeddings,
         top_k=top_k,
+        where_additional=where_additional,
     )
     conn.close()
 
-    # 4. Format results
+    # 5. Format results with invariant check
     hits: list[dict[str, Any]] = []
     if not raw_results or not raw_results.get("ids") or not raw_results["ids"][0]:
         return hits
@@ -320,10 +451,13 @@ def query_policy_corpus(
     dists = raw_results.get("distances", [[None] * len(ids)])[0]
 
     for chunk_id, doc_text, meta, dist in zip(ids, docs, metas, dists):
+        did = meta.get("document_id")
+        if allowed_doc_ids is not None and did not in allowed_doc_ids:
+            continue
         hits.append(
             {
                 "chunk_id": chunk_id,
-                "document_id": meta.get("document_id"),
+                "document_id": did,
                 "text": doc_text,
                 "score": round(1.0 - dist, 4) if dist is not None else None,
                 "page_number": meta.get("page_number"),

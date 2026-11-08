@@ -909,6 +909,368 @@ class TestRegulatoryQAEngine(unittest.TestCase):
         self.assertFalse(_starts_with_incomplete_sentence("10. Asset classification categories."))
         self.assertFalse(_starts_with_incomplete_sentence("A bank shall ensure compliance."))
 
+    def test_rbi_issuer_filtering_in_grounded_qa(self) -> None:
+        """
+        Tests that metadata_filter='issuer=RBI' constrains retrieval in grounded QA
+        and prevents non-RBI documents (e.g. SEBI or DFS) from appearing in context or citations.
+        """
+        self._seed_active_document(
+            doc_id="rbi_kyc_2026",
+            fingerprint="fp_rbi_kyc",
+            version_id="ver_rbi_1",
+            chunks=[
+                {
+                    "chunk_id": "rbi_kyc_c1",
+                    "text": "RBI KYC Directions require periodic update every 2 years for high risk.",
+                    "page_number": 5,
+                    "section_heading": "RBI Section",
+                }
+            ],
+        )
+        self._seed_active_document(
+            doc_id="sebi_kyc_2026",
+            fingerprint="fp_sebi_kyc",
+            version_id="ver_sebi_1",
+            chunks=[
+                {
+                    "chunk_id": "sebi_kyc_c1",
+                    "text": "SEBI KYC Master Circular requires KRAs to upload records within 3 days.",
+                    "page_number": 8,
+                    "section_heading": "SEBI Section",
+                }
+            ],
+        )
+
+        manifest_mock = {
+            "rbi_kyc_2026": {"issuer": "Reserve Bank of India (RBI)"},
+            "sebi_kyc_2026": {"issuer": "Securities and Exchange Board of India (SEBI)"},
+        }
+
+        mock_llm = MockLLM()
+        qa_engine = RegulatoryQAEngine(
+            collection_name=self.collection_name,
+            llm_client=mock_llm,
+        )
+
+        res = qa_engine.answer_question(
+            query="What are KYC update requirements?",
+            metadata_filter="issuer=RBI",
+            chroma_client=self.chroma_client,
+            embedding_engine=self.embedding_engine,
+            registry_db_path=self.db_path,
+            manifest_meta=manifest_mock,
+        )
+
+        self.assertEqual(res["status"], "success")
+        self.assertIn("rbi_kyc_2026", mock_llm.last_user_prompt)
+        self.assertNotIn("sebi_kyc_2026", mock_llm.last_user_prompt)
+        self.assertEqual(len(res["sources"]), 1)
+        self.assertEqual(res["sources"][0]["document_id"], "rbi_kyc_2026")
+
+    def test_excluded_issuers_never_in_qa_context_or_citations(self) -> None:
+        """
+        Tests that when filtering for SEBI, RBI and DFS documents are strictly excluded.
+        """
+        self._seed_active_document(
+            doc_id="sebi_inv_2026",
+            fingerprint="fp_sebi",
+            version_id="ver_sebi",
+            chunks=[
+                {"chunk_id": "sebi_c1", "text": "SEBI investor protection provisions.", "page_number": 2, "section_heading": "Investor Protection"}
+            ],
+        )
+        self._seed_active_document(
+            doc_id="rbi_inv_2026",
+            fingerprint="fp_rbi",
+            version_id="ver_rbi",
+            chunks=[
+                {"chunk_id": "rbi_c1", "text": "RBI investor grievance redressal.", "page_number": 3, "section_heading": "Grievance"}
+            ],
+        )
+        self._seed_active_document(
+            doc_id="dfs_nabfid_2026",
+            fingerprint="fp_dfs",
+            version_id="ver_dfs",
+            chunks=[
+                {"chunk_id": "dfs_c1", "text": "DFS NaBFID rules.", "page_number": 4, "section_heading": "NaBFID"}
+            ],
+        )
+
+        manifest_mock = {
+            "sebi_inv_2026": {"issuer": "Securities and Exchange Board of India (SEBI)"},
+            "rbi_inv_2026": {"issuer": "Reserve Bank of India (RBI)"},
+            "dfs_nabfid_2026": {"issuer": "Department of Financial Services, Ministry of Finance (DFS/GOI)"},
+        }
+
+        qa_engine = RegulatoryQAEngine(
+            collection_name=self.collection_name,
+            llm_client=MockLLM(),
+        )
+        res = qa_engine.answer_question(
+            query="What are investor protections?",
+            metadata_filter="issuer=SEBI",
+            chroma_client=self.chroma_client,
+            embedding_engine=self.embedding_engine,
+            registry_db_path=self.db_path,
+            manifest_meta=manifest_mock,
+        )
+
+        self.assertEqual(res["status"], "success")
+        for src in res["sources"]:
+            self.assertEqual(src["document_id"], "sebi_inv_2026")
+            self.assertFalse(src["document_id"].startswith("rbi_"))
+            self.assertFalse(src["document_id"].startswith("dfs_"))
+
+    def test_clause_10_extractive_fallback_all_three_definitions_complete(self) -> None:
+        """
+        Tests that when Groq is unavailable, Clause 10 query extracts all three definitions
+        (Substandard, Doubtful, Loss) from stitched chunks 16 and 17, returns status='success',
+        and cites Pages 15-16.
+        """
+        doc_id = "rbi_irac_full_test"
+        fp = "fp_irac_full"
+        ver = "ver_irac_full"
+
+        self._seed_active_document(
+            doc_id=doc_id,
+            fingerprint=fp,
+            version_id=ver,
+            chunks=[
+                {
+                    "chunk_id": f"{doc_id}_struct_0016",
+                    "text": "10. Asset Classification Categories: (i) Sub-standard asset: An asset which has remained NPA for <= 12 months. (ii) Doubtful asset: An asset which has remained in the substandard",
+                    "page_number": 15,
+                    "section_heading": "(ii) Doubtful asset",
+                },
+                {
+                    "chunk_id": f"{doc_id}_struct_0017",
+                    "text": "category for 12 months. (iii) Loss asset: An asset where loss has been identified by the bank or RBI.",
+                    "page_number": 16,
+                    "section_heading": "Classification Details",
+                },
+            ],
+        )
+
+        col = self.chroma_client.get_or_create_collection(self.collection_name)
+        col.records[f"{doc_id}_struct_0016"]["metadata"]["chunk_index"] = 16
+        col.records[f"{doc_id}_struct_0016"]["metadata"]["strategy"] = "structure_aware"
+        col.records[f"{doc_id}_struct_0017"]["metadata"]["chunk_index"] = 17
+        col.records[f"{doc_id}_struct_0017"]["metadata"]["strategy"] = "structure_aware"
+
+        qa_engine = RegulatoryQAEngine(
+            collection_name=self.collection_name,
+            llm_client=None,
+            expand_adjacent=True,
+            max_expanded_hits=1,
+            include_predecessor=True,
+        )
+
+        with mock.patch("CS2_PolicyLens.src.rag_qa._load_groq_api_key", return_value=None):
+            with mock.patch("CS2_PolicyLens.src.rag_qa.query_policy_corpus") as mock_query:
+                mock_query.return_value = [
+                    {
+                        "chunk_id": f"{doc_id}_struct_0017",
+                        "document_id": doc_id,
+                        "page_number": 16,
+                        "section_heading": "Classification Details",
+                        "text": "category for 12 months. (iii) Loss asset: An asset where loss has been identified by the bank or RBI.",
+                        "score": 0.65,
+                        "metadata": {
+                            "document_id": doc_id,
+                            "chunk_index": 17,
+                            "version_id": ver,
+                            "index_fingerprint": fp,
+                            "collection_name": self.collection_name,
+                            "page_number": 16,
+                            "strategy": "structure_aware",
+                        },
+                    }
+                ]
+
+                res = qa_engine.answer_question(
+                    query="What are the definitions of substandard asset, doubtful asset and loss asset under Clause 10?",
+                    chroma_client=self.chroma_client,
+                    embedding_engine=self.embedding_engine,
+                    registry_db_path=self.db_path,
+                )
+
+        self.assertEqual(res["status"], "success")
+        self.assertIn("extractive_retrieval_fallback (offline/complete)", res["llm_used"])
+        self.assertIn("Substandard Asset", res["answer"])
+        self.assertIn("Doubtful Asset", res["answer"])
+        self.assertIn("Loss Asset", res["answer"])
+        self.assertEqual(res["sources"][0]["page_number"], "15-16")
+
+    def test_clause_10_missing_substandard_reports_partial_evidence(self) -> None:
+        """
+        Tests that when only Doubtful and Loss assets are in context (chunk 16 is missing),
+        the engine honestly reports status='partial_evidence' and marks Substandard as unverified.
+        """
+        doc_id = "rbi_irac_partial_test"
+        fp = "fp_irac_part"
+        ver = "ver_irac_part"
+
+        self._seed_active_document(
+            doc_id=doc_id,
+            fingerprint=fp,
+            version_id=ver,
+            chunks=[
+                {
+                    "chunk_id": f"{doc_id}_struct_0017",
+                    "text": "category for 12 months. A doubtful asset has weaknesses. (iii) Loss asset: An asset where loss has been identified by the bank or RBI.",
+                    "page_number": 16,
+                    "section_heading": "Classification Details",
+                },
+            ],
+        )
+
+        qa_engine = RegulatoryQAEngine(
+            collection_name=self.collection_name,
+            llm_client=None,
+            expand_adjacent=False,
+        )
+
+        with mock.patch("CS2_PolicyLens.src.rag_qa._load_groq_api_key", return_value=None):
+            with mock.patch("CS2_PolicyLens.src.rag_qa.query_policy_corpus") as mock_query:
+                mock_query.return_value = [
+                    {
+                        "chunk_id": f"{doc_id}_struct_0017",
+                        "document_id": doc_id,
+                        "page_number": 16,
+                        "section_heading": "Classification Details",
+                        "text": "category for 12 months. A doubtful asset has weaknesses. (iii) Loss asset: An asset where loss has been identified by the bank or RBI.",
+                        "score": 0.65,
+                        "metadata": {
+                            "document_id": doc_id,
+                            "chunk_index": 17,
+                            "version_id": ver,
+                            "index_fingerprint": fp,
+                            "collection_name": self.collection_name,
+                            "page_number": 16,
+                        },
+                    }
+                ]
+
+                res = qa_engine.answer_question(
+                    query="What are the definitions of substandard asset, doubtful asset and loss asset under Clause 10?",
+                    chroma_client=self.chroma_client,
+                    embedding_engine=self.embedding_engine,
+                    registry_db_path=self.db_path,
+                )
+
+        self.assertEqual(res["status"], "partial_evidence")
+        self.assertIn("extractive_retrieval_fallback (offline/partial)", res["llm_used"])
+        self.assertIn("Doubtful Asset", res["answer"])
+        self.assertIn("Loss Asset", res["answer"])
+        self.assertIn("Unverified / Missing in Retrieved Context", res["answer"])
+        self.assertIn("Substandard Asset", res["answer"])
+
+    def test_clause_8_npa_retrieval_and_conditions_extractive(self) -> None:
+        """
+        Tests Clause 8 NPA classification conditions extraction across chunks 8 and 9.
+        """
+        doc_id = "rbi_irac_clause8_test"
+        fp = "fp_c8"
+        ver = "ver_c8"
+
+        self._seed_active_document(
+            doc_id=doc_id,
+            fingerprint=fp,
+            version_id=ver,
+            chunks=[
+                {
+                    "chunk_id": f"{doc_id}_struct_0008",
+                    "text": "8. A bank shall classify a financial asset as NPA if: (1) interest and/ or principal remains overdue for more than 90 days in respect of a term loan;",
+                    "page_number": 9,
+                    "section_heading": "8. Classification as Non-Performing Asset",
+                },
+                {
+                    "chunk_id": f"{doc_id}_struct_0009",
+                    "text": "(2) If it is classified as 'out of order' in respect of an Overdraft/ Cash Credit (OD/CC);",
+                    "page_number": 10,
+                    "section_heading": "Clause 8 Continuation",
+                },
+            ],
+        )
+
+        col = self.chroma_client.get_or_create_collection(self.collection_name)
+        col.records[f"{doc_id}_struct_0008"]["metadata"]["chunk_index"] = 8
+        col.records[f"{doc_id}_struct_0008"]["metadata"]["strategy"] = "structure_aware"
+        col.records[f"{doc_id}_struct_0009"]["metadata"]["chunk_index"] = 9
+        col.records[f"{doc_id}_struct_0009"]["metadata"]["strategy"] = "structure_aware"
+
+        qa_engine = RegulatoryQAEngine(
+            collection_name=self.collection_name,
+            llm_client=None,
+            expand_adjacent=True,
+            include_predecessor=True,
+        )
+
+        with mock.patch("CS2_PolicyLens.src.rag_qa._load_groq_api_key", return_value=None):
+            with mock.patch("CS2_PolicyLens.src.rag_qa.query_policy_corpus") as mock_query:
+                mock_query.return_value = [
+                    {
+                        "chunk_id": f"{doc_id}_struct_0009",
+                        "document_id": doc_id,
+                        "page_number": 10,
+                        "section_heading": "Clause 8 Continuation",
+                        "text": "(2) If it is classified as 'out of order' in respect of an Overdraft/ Cash Credit (OD/CC);",
+                        "score": 0.60,
+                        "metadata": {
+                            "document_id": doc_id,
+                            "chunk_index": 9,
+                            "version_id": ver,
+                            "index_fingerprint": fp,
+                            "collection_name": self.collection_name,
+                            "page_number": 10,
+                            "strategy": "structure_aware",
+                        },
+                    }
+                ]
+
+                res = qa_engine.answer_question(
+                    query="What are the conditions for classifying an account as an NPA under Clause 8?",
+                    chroma_client=self.chroma_client,
+                    embedding_engine=self.embedding_engine,
+                    registry_db_path=self.db_path,
+                )
+
+        self.assertEqual(res["status"], "success")
+        self.assertIn("out of order", res["answer"])
+        self.assertEqual(res["sources"][0]["page_number"], "9-10")
+
+    def test_unsupported_filter_key_reports_error(self) -> None:
+        """
+        Tests that an unsupported filter key (e.g. unknown=foo) returns an honest error response.
+        """
+        qa_engine = RegulatoryQAEngine(collection_name=self.collection_name)
+        res = qa_engine.answer_question(
+            query="What is the SLR rate?",
+            metadata_filter="unknown_key=foo",
+            chroma_client=self.chroma_client,
+            embedding_engine=self.embedding_engine,
+            registry_db_path=self.db_path,
+        )
+        self.assertEqual(res["status"], "insufficient_evidence")
+        self.assertIn("Invalid metadata filter", res["answer"])
+        self.assertEqual(res["sources"], [])
+
+    def test_empty_matching_filter_returns_honest_refusal(self) -> None:
+        """
+        Tests that a filter matching 0 documents returns honest refusal with status='insufficient_evidence'.
+        """
+        qa_engine = RegulatoryQAEngine(collection_name=self.collection_name)
+        res = qa_engine.answer_question(
+            query="What is the SLR rate?",
+            metadata_filter="issuer=NONEXISTENT_ORG",
+            chroma_client=self.chroma_client,
+            embedding_engine=self.embedding_engine,
+            registry_db_path=self.db_path,
+        )
+        self.assertEqual(res["status"], "insufficient_evidence")
+        self.assertIn("No active documents match filter", res["answer"])
+        self.assertEqual(res["sources"], [])
+
 
 if __name__ == "__main__":
     unittest.main()

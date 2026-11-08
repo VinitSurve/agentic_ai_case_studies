@@ -11,7 +11,7 @@
         "recall_at_5": 1.0,
         "recall_at_10": 1.0,
         "mrr": 0.91,
-        "avg_latency_ms": 207.21,
+        "avg_latency_ms": 209.65,
         "q23_rank": 4,
         "avg_raw_pool": 20.0,
         "avg_dedup_pool": 20.0
@@ -21,7 +21,7 @@
         "recall_at_5": 1.0,
         "recall_at_10": 1.0,
         "mrr": 0.93,
-        "avg_latency_ms": 210.34,
+        "avg_latency_ms": 212.53,
         "q23_rank": 4,
         "avg_raw_pool": 20.0,
         "avg_dedup_pool": 20.0
@@ -31,7 +31,7 @@
         "recall_at_5": 1.0,
         "recall_at_10": 1.0,
         "mrr": 0.93,
-        "avg_latency_ms": 14.43,
+        "avg_latency_ms": 14.29,
         "q23_rank": 4,
         "avg_raw_pool": 20.0,
         "avg_dedup_pool": 20.0
@@ -41,7 +41,7 @@
         "recall_at_5": 1.0,
         "recall_at_10": 1.0,
         "mrr": 0.93,
-        "avg_latency_ms": 74.47,
+        "avg_latency_ms": 73.37,
         "q23_rank": 4,
         "avg_raw_pool": 25.2,
         "avg_dedup_pool": 22.1
@@ -51,7 +51,7 @@
         "recall_at_5": 1.0,
         "recall_at_10": 1.0,
         "mrr": 0.93,
-        "avg_latency_ms": 73.36,
+        "avg_latency_ms": 72.07,
         "q23_rank": 4,
         "avg_raw_pool": 25.2,
         "avg_dedup_pool": 22.1
@@ -71,7 +71,7 @@
       "query": "What are substandard, doubtful, and loss assets in asset classification?",
       "configs": {
         "1. Dense Baseline": {
-          "latency_ms": 78.88,
+          "latency_ms": 69.53,
           "raw_pool_size": 25,
           "dedup_pool_size": 25,
           "clause8_struct_0008_rank": null,
@@ -113,7 +113,7 @@
           ]
         },
         "2. Dense + Config 4": {
-          "latency_ms": 18.78,
+          "latency_ms": 18.0,
           "raw_pool_size": 25,
           "dedup_pool_size": 25,
           "clause8_struct_0008_rank": null,
@@ -155,7 +155,7 @@
           ]
         },
         "3. Dense + Query Expansion + Config 4": {
-          "latency_ms": 16.95,
+          "latency_ms": 19.64,
           "raw_pool_size": 25,
           "dedup_pool_size": 25,
           "clause8_struct_0008_rank": null,
@@ -197,7 +197,7 @@
           ]
         },
         "4. Hybrid (Dense + Lexical) + Config 4": {
-          "latency_ms": 88.64,
+          "latency_ms": 87.6,
           "raw_pool_size": 50,
           "dedup_pool_size": 44,
           "clause8_struct_0008_rank": 26,
@@ -239,7 +239,7 @@
           ]
         },
         "5. Hybrid + Query Expansion + Config 4": {
-          "latency_ms": 86.81,
+          "latency_ms": 87.94,
           "raw_pool_size": 50,
           "dedup_pool_size": 44,
           "clause8_struct_0008_rank": 26,
@@ -287,7 +287,7 @@
       "query": "When does a credit facility get classified as a non-performing asset or out of order?",
       "configs": {
         "1. Dense Baseline": {
-          "latency_ms": 19.78,
+          "latency_ms": 19.37,
           "raw_pool_size": 25,
           "dedup_pool_size": 25,
           "clause8_struct_0008_rank": null,
@@ -329,7 +329,7 @@
           ]
         },
         "2. Dense + Config 4": {
-          "latency_ms": 18.56,
+          "latency_ms": 17.61,
           "raw_pool_size": 25,
           "dedup_pool_size": 25,
           "clause8_struct_0008_rank": null,
@@ -371,7 +371,7 @@
           ]
         },
         "3. Dense + Query Expansion + Config 4": {
-          "latency_ms": 21.14,
+          "latency_ms": 20.53,
           "raw_pool_size": 25,
           "dedup_pool_size": 25,
           "clause8_struct_0008_rank": null,
@@ -413,7 +413,7 @@
           ]
         },
         "4. Hybrid (Dense + Lexical) + Config 4": {
-          "latency_ms": 80.37,
+          "latency_ms": 82.84,
           "raw_pool_size": 44,
           "dedup_pool_size": 38,
           "clause8_struct_0008_rank": 20,
@@ -455,7 +455,7 @@
           ]
         },
         "5. Hybrid + Query Expansion + Config 4": {
-          "latency_ms": 81.28,
+          "latency_ms": 87.4,
           "raw_pool_size": 44,
           "dedup_pool_size": 39,
           "clause8_struct_0008_rank": 28,
@@ -503,7 +503,7 @@
       "query": "What is the definition of a non-performing asset in IRAC directions?",
       "configs": {
         "1. Dense Baseline": {
-          "latency_ms": 14.77,
+          "latency_ms": 15.96,
           "raw_pool_size": 25,
           "dedup_pool_size": 25,
           "clause8_struct_0008_rank": 15,
@@ -545,7 +545,7 @@
           ]
         },
         "2. Dense + Config 4": {
-          "latency_ms": 17.56,
+          "latency_ms": 18.0,
           "raw_pool_size": 25,
           "dedup_pool_size": 25,
           "clause8_struct_0008_rank": 7,
@@ -587,7 +587,7 @@
           ]
         },
         "3. Dense + Query Expansion + Config 4": {
-          "latency_ms": 21.25,
+          "latency_ms": 21.46,
           "raw_pool_size": 25,
           "dedup_pool_size": 25,
           "clause8_struct_0008_rank": 19,
@@ -629,7 +629,7 @@
           ]
         },
         "4. Hybrid (Dense + Lexical) + Config 4": {
-          "latency_ms": 93.18,
+          "latency_ms": 94.57,
           "raw_pool_size": 50,
           "dedup_pool_size": 50,
           "clause8_struct_0008_rank": 7,
@@ -671,7 +671,7 @@
           ]
         },
         "5. Hybrid + Query Expansion + Config 4": {
-          "latency_ms": 93.19,
+          "latency_ms": 96.46,
           "raw_pool_size": 50,
           "dedup_pool_size": 50,
           "clause8_struct_0008_rank": 19,
