@@ -551,7 +551,7 @@ class TestChapterBoundaryChunkerRegression(unittest.TestCase):
 
     def test_toc_lines_with_dot_leaders_do_not_trigger_flush(self) -> None:
         """
-        Verifies that Table of Contents lines (containing dot leaders '....')
+        Verifies that Table of Contents lines (containing dot leaders '....' or Unicode ellipses)
         do not trigger a chapter boundary flush.
         """
         self.assertFalse(
@@ -564,11 +564,106 @@ class TestChapterBoundaryChunkerRegression(unittest.TestCase):
                 "Chapter II: Classification as Non-Performing Asset ..................................... 10"
             )
         )
+        self.assertFalse(
+            RegulatoryChunker._is_major_chapter_heading(
+                "Chapter VII : Repeal………………………………………………………………………16"
+            )
+        )
         self.assertTrue(
             RegulatoryChunker._is_major_chapter_heading(
                 "Chapter II: Classification as Non-Performing Asset"
             )
         )
+
+    def test_prose_references_rejected_as_chapter_headings(self) -> None:
+        """
+        Verifies that in-text prose references to chapters are not treated as major headings:
+        - Commas following chapter numeral
+        - Cross-reference prepositions ('of', 'under', 'in', 'for')
+        - Trailing periods or mid-string sentence breaks
+        """
+        self.assertFalse(
+            RegulatoryChunker._is_major_chapter_heading(
+                "Chapter III, whose market values are affected by change in interest rates. Such"
+            )
+        )
+        self.assertFalse(
+            RegulatoryChunker._is_major_chapter_heading(
+                "Chapter II of these Directions shall apply to all scheduled commercial banks"
+            )
+        )
+        self.assertFalse(
+            RegulatoryChunker._is_major_chapter_heading(
+                "Chapter I under the regulatory framework."
+            )
+        )
+        self.assertFalse(
+            RegulatoryChunker._is_major_chapter_heading(
+                "Chapter IV in respect of exposures."
+            )
+        )
+
+    def test_toc_without_dot_leaders_rejected(self) -> None:
+        """
+        Verifies that Table of Contents entries lacking dot leaders but ending with
+        trailing page numbers (newlines or wide whitespace) are not treated as major headings.
+        """
+        self.assertFalse(
+            RegulatoryChunker._is_major_chapter_heading(
+                "CHAPTER I – PRELIMINARY\n3"
+            )
+        )
+        self.assertFalse(
+            RegulatoryChunker._is_major_chapter_heading(
+                "CHAPTER II – GENERAL INSTRUCTIONS\n8"
+            )
+        )
+        self.assertFalse(
+            RegulatoryChunker._is_major_chapter_heading(
+                "CHAPTER VI - REPEAL\n79"
+            )
+        )
+
+    def test_hyphenated_and_dash_chapter_headings_recognized(self) -> None:
+        """
+        Verifies that hyphenated, en-dash, or em-dash chapter headings from various
+        regulatory circulars are recognized as major chapter headings.
+        """
+        self.assertTrue(
+            RegulatoryChunker._is_major_chapter_heading("Chapter-I: Preliminary")
+        )
+        self.assertTrue(
+            RegulatoryChunker._is_major_chapter_heading("Chapter-II: Scope of Application")
+        )
+        self.assertTrue(
+            RegulatoryChunker._is_major_chapter_heading("Chapter-IV: CVA risk capital charge under the BA-CVA")
+        )
+        self.assertTrue(
+            RegulatoryChunker._is_major_chapter_heading("Chapter-IV: Calculating risk-weighted assets for market risk")
+        )
+        self.assertTrue(
+            RegulatoryChunker._is_major_chapter_heading("CHAPTER I – PRELIMINARY")
+        )
+        self.assertTrue(
+            RegulatoryChunker._is_major_chapter_heading("Chapter V – Principles for Model Risk Management under ECL")
+        )
+
+    def test_parenthesized_condition_does_not_overwrite_section_heading(self) -> None:
+        """
+        Verifies that parenthesized conditions (e.g. '(1)', '(8)') do not overwrite
+        the section heading context during structure-aware chunking.
+        """
+        blocks = [
+            self._make_block("b1", 10, BlockType.HEADING, "Chapter II: Classification as Non-Performing Asset"),
+            self._make_block("b2", 10, BlockType.HEADING, "A. Classification as Non-Performing Asset"),
+            self._make_block("b3", 10, BlockType.LIST_ITEM, "8. A bank shall classify a financial asset as NPA if satisfied:"),
+            self._make_block("b4", 10, BlockType.HEADING, "(8) If interest / instalment from debt instruments remains overdue"),
+        ]
+        doc = ParsedDocument(document_id=self.doc_id, total_pages=10, blocks=blocks, diagnostics=self.diagnostics)
+        chunks = self.chunker.chunk(doc, "policylens_structure", "fp_reg", "v1")
+
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0].metadata["section_heading"], "A. Classification as Non-Performing Asset")
 
 
 if __name__ == "__main__":

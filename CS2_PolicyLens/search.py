@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import logging
 import re
 import sys
 from pathlib import Path
@@ -33,6 +34,8 @@ from CS2_PolicyLens.src.indexing_pipeline import (
 from CS2_PolicyLens.src.rag_qa import RegulatoryQAEngine
 from CS2_PolicyLens.src.version_registry import get_database_connection
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 STOPWORDS = {
     'a', 'about', 'above', 'after', 'again', 'against', 'all', 'am', 'an', 'and', 'any', 'are', 'aren',
@@ -185,6 +188,8 @@ def apply_lexical_rerank(
     max_boost_ratio: float = 0.10,
     fixed_cap: float | None = None,
     max_boost: float | None = None,
+    apply_entity_disambiguation: bool = True,
+    manifest_meta: dict[str, dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """
     Applies calibrated Config 4 lexical reranking to vector retrieval candidates:
@@ -192,6 +197,7 @@ def apply_lexical_rerank(
     - No isolated digits rewarded.
     - Non-overlapping phrase deduplication.
     - Dynamic boost cap proportional to base cosine score (default: 10%).
+    - Optional entity-level disambiguation adjustment for explicit entity queries.
     """
     if fixed_cap is None and max_boost is not None:
         fixed_cap = max_boost
@@ -228,6 +234,21 @@ def apply_lexical_rerank(
         reranked.append(h_copy)
 
     reranked.sort(key=lambda x: x['score'], reverse=True)
+
+    if apply_entity_disambiguation:
+        from CS2_PolicyLens.src.entity_disambiguation import (
+            detect_query_entity,
+            apply_entity_disambiguation_adjustment,
+        )
+        ent_res = detect_query_entity(query)
+        if ent_res.confidence == "explicit":
+            reranked = apply_entity_disambiguation_adjustment(
+                hits=reranked,
+                entity_result=ent_res,
+                manifest_meta=manifest_meta,
+                query=query,
+            )
+
     return reranked
 
 
@@ -238,9 +259,12 @@ def retrieve_hybrid_candidates(
     top_k_lexical: int = 20,
     use_expansion: bool = False,
     active_doc_filter: dict[str, Any] | None = None,
+    use_entity_expansion: bool = True,
+    manifest_meta: dict[str, dict[str, Any]] | None = None,
 ) -> tuple[list[dict[str, Any]], int, int]:
     """
-    Generates hybrid candidates by merging dense vector search and ChromaDB lexical matching.
+    Generates hybrid candidates by merging dense vector search and ChromaDB lexical matching,
+    with optional entity-level candidate expansion for explicit statutory entity queries.
     Returns: (deduplicated_candidate_list, raw_pool_count, dedup_pool_count)
     """
     from CS2_PolicyLens.src.embeddings import EmbeddingEngine
@@ -359,6 +383,54 @@ def retrieve_hybrid_candidates(
                 "metadata": meta,
             }
 
+    # 3. Supplemental candidate expansion for explicit statutory entity queries
+    if use_entity_expansion:
+        from CS2_PolicyLens.src.entity_disambiguation import (
+            detect_query_entity,
+            get_entity_matching_doc_ids,
+        )
+        ent_res = detect_query_entity(query)
+        if ent_res.confidence == "explicit" and ent_res.entity_type:
+            matching_docs = get_entity_matching_doc_ids(ent_res.entity_type, manifest_meta)
+            if matching_docs:
+                if len(matching_docs) == 1:
+                    doc_cond = {"document_id": matching_docs[0]}
+                else:
+                    doc_cond = {"document_id": {"$in": matching_docs}}
+
+                ent_where = {"$and": [base_filter, doc_cond]}
+                try:
+                    ent_res_dense = chroma_col.query(
+                        query_embeddings=[q_emb.tolist()],
+                        n_results=10,
+                        where=ent_where,
+                    )
+                    if ent_res_dense and ent_res_dense.get("ids") and ent_res_dense["ids"][0]:
+                        raw_pool_count += len(ent_res_dense["ids"][0])
+                        for cid, doc, meta, dist in zip(
+                            ent_res_dense["ids"][0],
+                            ent_res_dense["documents"][0],
+                            ent_res_dense["metadatas"][0],
+                            ent_res_dense["distances"][0],
+                        ):
+                            if cid not in candidates:
+                                candidates[cid] = {
+                                    "chunk_id": cid,
+                                    "document_id": meta.get("document_id"),
+                                    "text": doc,
+                                    "score": round(1.0 - dist, 4) if dist is not None else 0.0,
+                                    "page_number": meta.get("page_number"),
+                                    "section_heading": meta.get("section_heading"),
+                                    "source": "entity_expansion",
+                                    "metadata": meta,
+                                }
+                except Exception as e:
+                    logger.warning(
+                        "Entity candidate expansion failed for entity %s (falling back to standard candidates): %s",
+                        ent_res.entity_type,
+                        e,
+                    )
+
     dedup_pool_count = len(candidates)
     return list(candidates.values()), raw_pool_count, dedup_pool_count
 
@@ -378,8 +450,8 @@ def _load_manifest_metadata() -> dict[str, dict[str, str]]:
                         "issue_date": r.get("issue_date", ""),
                         "url": r.get("url", ""),
                     }
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Failed to load manifest metadata from %s: %s", manifest_file, e)
     return mapping
 
 
@@ -521,6 +593,7 @@ def main() -> None:
                 top_k_lexical=max(args.top_k * 4, 25),
                 use_expansion=args.expand,
                 active_doc_filter=doc_filter,
+                manifest_meta=manifest_meta,
             )
         else:
             search_query = expand_query_text(active_query) if args.expand else active_query
@@ -565,6 +638,7 @@ def main() -> None:
                 query=rerank_q,
                 denoise_text=args.denoise,
                 boost_weight=args.boost_weight,
+                manifest_meta=manifest_meta,
             )
             hits = reranked[:args.top_k]
         else:

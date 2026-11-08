@@ -61,14 +61,49 @@ class RegulatoryChunker:
     @staticmethod
     def _is_major_chapter_heading(text: str) -> bool:
         """
-        Detects major CHAPTER headings (e.g., 'Chapter II: Classification as Non-Performing Asset').
-        Excludes Table of Contents entries containing dot leaders ('...' or '…').
+        Detects major CHAPTER headings (e.g., 'Chapter II: Classification as Non-Performing Asset',
+        'Chapter-I: Preliminary', 'CHAPTER III – EXPOSURE CLASSES AND RISK WEIGHTS').
+
+        Reliably rejects:
+        - Prose references (e.g., 'Chapter III, whose...', 'Chapter II of these Directions')
+        - Table of Contents lines (dot-leaders or trailing page numbers e.g. '... 4', '\n3')
+        - Sentences containing mid-block sentence breaks or trailing periods
         """
         stripped = text.strip()
-        if not re.match(r"^CHAPTER\s+([IVXLCDM]+|\d+)\b", stripped, re.IGNORECASE):
+
+        # 1. Match 'CHAPTER' followed by space/dash/en-dash and Roman or Arabic numerals
+        m = re.match(
+            r"^CHAPTER[\s\-–—]+([IVXLCDM]+|\d+)\b(.*)",
+            stripped,
+            re.IGNORECASE | re.DOTALL,
+        )
+        if not m:
             return False
-        if ".." in stripped or "…" in stripped:
+
+        rest = m.group(2).strip()
+
+        # 2. Reject prose references
+        # Comma immediately following numeral (e.g., 'Chapter III, whose...')
+        if rest.startswith(","):
             return False
+        # Prepositions indicating a reference rather than a title (e.g., 'Chapter II of these Directions')
+        if re.match(r"^(of|under|in|for)\b", rest, re.IGNORECASE):
+            return False
+        # Headings do not end in a period or semicolon
+        if stripped.endswith(".") or stripped.endswith(";"):
+            return False
+        # Headings do not contain mid-string sentence breaks (e.g., '...rates. Such')
+        if re.search(r"\.\s+[A-Z]", rest):
+            return False
+
+        # 3. Reject Table of Contents entries terminating in a page number
+        # Dot leaders / ellipses followed by page number: '... 4' or '…… 16'
+        if re.search(r"(\.{2,}|…+)\s*\d+$", stripped):
+            return False
+        # Linebreak or wide tabular spacing followed by page number: '\n3', '   8'
+        if re.search(r"(\n|\s{2,})\d+$", stripped):
+            return False
+
         return True
 
     def chunk(
